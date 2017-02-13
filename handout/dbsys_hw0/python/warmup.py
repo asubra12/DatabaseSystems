@@ -10,7 +10,7 @@ import re
 
 class Lineitem(object):
   # The format string, for use with the struct module.
-  fmt = ""
+  fmt = "IIIIffffss10s10s10s25s10s44s"
 
   # Initialize a lineitem object.
   # Arguments are strings that correspond to the columns of the tuple.
@@ -56,12 +56,25 @@ class Lineitem(object):
         new_str = ((size-curr_len)*' ') + string
         return new_str
 
-
-
   # Pack this lineitem object into a bytes object.
   def pack(self):
-    raise NotImplementedError()
-
+    endPack = pack(fmt,
+      self.l_orderkey,
+      self.l_partkey,
+      self.l_suppkey,
+      self.l_linenumber,
+      self.l_quantity,
+      self.l_extendedprice,
+      self.l_discount,
+      self.l_tax,
+      self.l_returnflag,
+      self.l_linestatus,
+      self.l_shipdate,
+      self.l_commitdate,
+      self.l_receiptdate,
+      self.pad(self.l_shipinstruct, 25),
+      self.pad(self.l_shipmode, 10),
+      self.pad(self.l_comment, 44))
   # Construct a lineitem object from a bytes object.
   @classmethod
   def unpack(cls, byts):
@@ -73,7 +86,7 @@ class Lineitem(object):
   def byteSize(cls):
     return struct.calcsize(cls.fmt)
 
-    
+
 class Orders(object):
   # The format string, for use with the struct module.
   fmt = ""
@@ -111,13 +124,13 @@ class Orders(object):
 
   # Pack this orders object into a bytes object.
   def pack(self):
-    raise NotImplementedError()
+    
 
   # Construct an orders object from a bytes object.
   @classmethod
   def unpack(cls, byts):
     raise NotImplementedError()
-  
+
   # Return the size of the packed representation.
   # Do not change.
   @classmethod
