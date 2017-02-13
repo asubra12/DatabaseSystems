@@ -8,6 +8,6 @@
 select l.l_partkey, p.p_name, sum(l.l_quantity)
 from lineitem l, part p
 where l_returnflag="R" and l.l_partkey=p.p_partkey
-group by l_partkey
+group by l.l_partkey
 order by sum(l_quantity) desc
 limit 10;

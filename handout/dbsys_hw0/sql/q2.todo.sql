@@ -10,4 +10,9 @@
 
 -- Student SQL code here:
 
-
+select o.o_custkey, c.c_name, avg(DATE(l.l_receiptdate)-DATE(l.l_shipdate))
+from orders o, customer c, lineitem l
+where o.o_orderkey = l.l_orderkey and c.c_custkey = o.o_custkey
+group by o.o_custkey
+order by avg(DATE(l.l_receiptdate)-DATE(l.l_shipdate)) desc
+limit 10;
