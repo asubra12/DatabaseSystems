@@ -74,14 +74,25 @@ class Lineitem(object):
                               self.l_receiptdate,
                               str.encode(self.pad(self.l_shipinstruct.decode('utf-8'), 25)),
                               str.encode(self.pad(self.l_shipmode.decode('utf-8'), 10)),
-                              str.encode(self.pad(self.l_comment.decode('utf-8'), 25)))
+                              str.encode(self.pad(self.l_comment.decode('utf-8'), 44)))
 
         return endPack
 
     # Construct a lineitem object from a bytes object.
     @classmethod
     def unpack(cls, byts):
-        raise NotImplementedError()
+        fmt = "IIIIffffss10s10s10s25s10s44s"
+        lst = []
+        unpacked = struct.unpack(fmt, byts)
+
+        for a in unpacked:
+            if type(a) == int or type(a) == float:
+                lst.append(str(a))
+            else:
+                lst.append(a.decode('utf-8').lstrip())
+        print(lst)
+
+        return cls(*lst)
 
     # Return the size of the packed representation.
     # Do not change.
@@ -143,7 +154,7 @@ class Orders(object):
                               str.encode(self.pad(self.o_orderpriority.decode('utf-8'), 15)),
                               str.encode(self.pad(self.o_clerk.decode('utf-8'), 15)),
                               self.o_shippriority,
-                              str.encode(self.pad(self.o_clerk.decode('utf-8'), 79)))
+                              str.encode(self.pad(self.o_comment.decode('utf-8'), 79)))
         return endPack
 
     # Construct an orders object from a bytes object.
@@ -158,9 +169,9 @@ class Orders(object):
                 lst.append(str(a))
             else:
                 lst.append(a.decode('utf-8').lstrip())
+        print(lst)
 
-            print(lst)
-        return
+        return cls(*lst)
 
 
     # Return the size of the packed representation.
