@@ -5,6 +5,7 @@ from utils import runCommand, runSQLScript, runSQLCommand
 from dbsys_hw0.python.warmup import Orders, Lineitem, readCsvFile, writeBinaryFile, readBinaryFile
 import common
 import unittest
+import re
 import os
 
 dbName = 'test.db'
