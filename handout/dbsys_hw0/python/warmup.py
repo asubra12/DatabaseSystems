@@ -193,9 +193,20 @@ def readCsvFile(inPath, cls, delim='|'):
 # Write the list of objects to the file in packed form.
 # Each object provides a 'pack' method for conversion to bytes.
 def writeBinaryFile(outPath, lst):
-    raise NotImplementedError()
+    target = open(outPath, 'wb')
+    for i in lst:
+      target.write(i.pack())
+      target.write("\n")
+    target.close()
+    return
+
 
 # Read the binary file, and return a list of 'cls' objects.
-# 'cls' provicdes 'byteSize' and 'unpack' methods for reading and conversion.
+# 'cls' provides 'byteSize' and 'unpack' methods for reading and conversion.
 def readBinaryFile(inPath, cls):
-    raise NotImplementedError()
+    output = []
+    with open(inPath, 'rb') as f:
+      for line in f:
+        fields = line.splitlines()
+        output.append(cls.unpack(fields))
+    return output

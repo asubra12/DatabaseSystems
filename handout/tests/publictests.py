@@ -101,8 +101,8 @@ class Hw0PublicTests(unittest.TestCase):
 
   def testBinary(self):
     # Get some data
-    orders_lst1 = readCsvFile('/home/cs416/datasets/hw0/tpch-sf0.1/orders.csv', Orders)[0:5]
-    
+    # orders_lst1 = readCsvFile('/home/cs416/datasets/hw0/tpch-sf0.1/orders.csv', Orders)[0:5]
+    orders_lst1 = readCsvFile('/Users/Anshul/Documents/Junior Year/Database Systems/HW0/tpch-sf0.1/orders.csv', Orders)[0:5]
     # Write out binary
     writeBinaryFile('orders.bin', orders_lst1)
 
