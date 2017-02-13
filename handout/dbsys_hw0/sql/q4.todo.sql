@@ -36,7 +36,7 @@ WITH top_five AS (
 	select * from cust_supp
 	order by cust asc, val desc)
 select top_five.cust, supp_order.supp, supp_order.val
-from top_five join supp_order on top_five.cust = supp_order.cust
+from top_five left join supp_order on top_five.cust = supp_order.cust
 where supp_order.supp IN (
 	select s2.supp from supp_order s2
 	where s2.cust = top_five.cust
