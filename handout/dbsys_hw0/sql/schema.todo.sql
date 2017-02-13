@@ -39,25 +39,70 @@ create table supplier (
 );
 
 create table partsupp (
+	ps_partkey INTEGER,
+	ps_suppkey INTEGER,
+	ps_availqty INTEGER,
+	ps_supplycost REAL,
+	ps_comment TEXT
 
 );
 
 create table customer (
+	c_custkey INTEGER,
+	c_name TEXT,
+	c_address TEXT,
+	c_nationkey INTEGER,
+	c_phone TEXT,
+	c_acctbal REAL,
+	c_mktsegment TEXT,
+	c_comment TEXT
 
 );
 
 create table orders (
+	o_orderkey INTEGER,
+	o_custkey INTEGER,
+	o_orderstatus TEXT,
+	o_totalprice REAL,
+	o_orderdate TEXT,
+	o_orderpriority TEXT,
+	o_clerk TEXT,
+	o_shippriority INTEGER,
+	o_comment TEXT
 
 );
 
 create table lineitem (
+	l_orderkey INTEGER,
+	l_partkey INTEGER,
+	l_suppkey INTEGER,
+	l_linenumber INTEGER,
+	l_quantity REAL,
+	l_extendedprice REAL,
+	l_discount REAL,
+	l_tax REAL,
+	l_returnflag TEXT,
+	l_linestatus REAL,
+	l_shipdate TEXT,
+	l_commitdate TEXT,
+	l_receiptdate TEXT,
+	l_shipinstruct TEXT,
+	l_shipmode TEXT,
+	l_comment TEXT
 
 );
 
 create table nation (
+	n_nationkey INTEGER,
+	n_name TEXT,
+	n_regionkey INTEGER,
+	n_comment TEXT
 
 );
 
 create table region (
+	r_regionkey INTEGER,
+	r_name TEXT,
+	r_comment TEXT
 
 );
