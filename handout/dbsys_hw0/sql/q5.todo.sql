@@ -13,4 +13,15 @@
 
 -- Student SQL code here:
 
-
+with mkt_order as (
+	select c_mktsegment, CAST(strftime('%Y', o_orderdate) as INTEGER) as yr, count(*) as count
+	from customer, orders
+	where o_custkey = c_custkey
+	group by c_mktsegment, yr
+	order by c_mktsegment asc, yr desc)
+select m1.c_mktsegment, m1.yr, (m1.count - m2.count)
+from mkt_order m1 join mkt_order m2 on (m1.yr-1)=m2.yr
+where m1.c_mktsegment = m2.c_mktsegment and m1.count < m2.count
+group by m1.c_mktsegment
+having max(m1.yr)
+order by m1.c_mktsegment asc;
