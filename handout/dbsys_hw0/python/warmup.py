@@ -73,9 +73,9 @@ class Lineitem(object):
                               self.l_shipdate,
                               self.l_commitdate,
                               self.l_receiptdate,
-                              str.encode(self.pad(self.l_shipinstruct.decode('utf-8'), 25)),
-                              str.encode(self.pad(self.l_shipmode.decode('utf-8'), 10)),
-                              str.encode(self.pad(self.l_comment.decode('utf-8'), 44)))
+                              self.pad(self.l_shipinstruct.decode('utf-8'), 25).encode('ascii'),
+                              self.pad(self.l_shipmode.decode('utf-8'), 10).encode('ascii'),
+                              self.pad(self.l_comment.decode('utf-8'), 44).encode('ascii'))
 
         return endPack
 
@@ -151,11 +151,11 @@ class Orders(object):
                               self.o_custkey,
                               self.o_orderstatus,
                               self.o_totalprice,
-                              str.encode(self.pad(self.o_orderdate.decode('utf-8'), 10)),
-                              str.encode(self.pad(self.o_orderpriority.decode('utf-8'), 15)),
-                              str.encode(self.pad(self.o_clerk.decode('utf-8'), 15)),
+                              self.pad(self.o_orderdate.decode('utf-8'), 10).encode('ascii'),
+                              self.pad(self.o_orderpriority.decode('utf-8'), 15).encode('ascii'),
+                              self.pad(self.o_clerk.decode('utf-8'), 15).encode('ascii'),
                               self.o_shippriority,
-                              str.encode(self.pad(self.o_comment.decode('utf-8'), 79)))
+                              self.pad(self.o_comment.decode('utf-8'), 79).encode('ascii'))
         return endPack
 
     # Construct an orders object from a bytes object.
