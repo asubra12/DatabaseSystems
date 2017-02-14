@@ -10,6 +10,7 @@ import re
 
 class Lineitem(object):
     # The format string, for use with the struct module.
+    fmt = "IIIIffffss10s10s10s25s10s44s"
 
     # Initialize a lineitem object.
     # Arguments are strings that correspond to the columns of the tuple.
@@ -103,7 +104,7 @@ class Lineitem(object):
 
 class Orders(object):
     # The format string, for use with the struct module.
-
+    fmt = "I I s f 10s 15s 15s I 79s"
 
     # Initialize an orders object.
     # Arguments are strings that correspond to the columns of the tuple.
@@ -196,7 +197,7 @@ def writeBinaryFile(outPath, lst):
     target = open(outPath, 'wb')
     for i in lst:
       target.write(i.pack())
-      target.write("\n")
+      # target.write(bytes('\n'))
     target.close()
     return
 
@@ -204,9 +205,15 @@ def writeBinaryFile(outPath, lst):
 # Read the binary file, and return a list of 'cls' objects.
 # 'cls' provides 'byteSize' and 'unpack' methods for reading and conversion.
 def readBinaryFile(inPath, cls):
-    output = []
-    with open(inPath, 'rb') as f:
-      for line in f:
-        fields = line.splitlines()
-        output.append(cls.unpack(fields))
-    return output
+    f = open(inPath, 'rb')
+    data = f.read()
+    bytesize = cls.byteSize()
+    cls_obj = []
+    tot = int(len(data) / bytesize)
+
+    for i in range(tot):
+        to_unpack = data[(i*bytesize):((i+1)*bytesize)]
+        temp = cls.unpack(to_unpack)
+        cls_obj.append(temp)
+
+    return cls_obj
