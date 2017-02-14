@@ -91,7 +91,6 @@ class Lineitem(object):
                 lst.append(str(a))
             else:
                 lst.append(a.decode('utf-8').lstrip())
-        print(lst)
 
         return cls(*lst)
 
@@ -170,7 +169,6 @@ class Orders(object):
                 lst.append(str(a))
             else:
                 lst.append(a.decode('utf-8').lstrip())
-        print(lst)
 
         return cls(*lst)
 
