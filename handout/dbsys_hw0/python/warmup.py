@@ -43,13 +43,13 @@ class Lineitem(object):
         intmatch = re.compile('^\d+$')
 
         if datematch.match(string) is not None:
-            return str.encode(string)
+            return string.encode('utf-8')
         elif floatmatch.match(string) is not None:
             return float(string)
         elif intmatch.match(string) is not None:
             return int(string)
         else:
-            return str.encode(string)
+            return string.encode('utf-8')
 
 
     def pad(self, string, size):
@@ -130,13 +130,13 @@ class Orders(object):
         intmatch = re.compile('^\d+$')
 
         if datematch.match(string) is not None:
-            return str.encode(string)
+            return string.encode('utf-8')
         elif floatmatch.match(string) is not None:
             return float(string)
         elif intmatch.match(string) is not None:
             return int(string)
         else:
-            return str.encode(string)
+            return string.encode('utf-8')
 
 
     def pad(self, string, size):
