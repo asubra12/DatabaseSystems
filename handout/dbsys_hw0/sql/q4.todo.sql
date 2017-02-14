@@ -29,7 +29,7 @@ INSERT INTO cust_supp (cust, custname, supp, suppname, val)
 	GROUP BY cust, supp;
 
 WITH top_five AS (
-	select cust 
+	select cust
 	from cust_supp
 	group by cust
 	order by sum(val) DESC

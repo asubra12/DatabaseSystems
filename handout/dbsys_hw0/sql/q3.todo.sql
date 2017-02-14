@@ -19,10 +19,6 @@ temp2 as (
 	group by t1.nkey)
 
 select t1.nkey, t1.nname, t1.pkey, t1.pname, t1.partsum
-from temp t1 join temp2 t2 on t1.nkey = t2.nkey 
+from temp t1 join temp2 t2 on t1.nkey = t2.nkey
 where t1.partsum = t2.partsum
 order by t1.nkey asc;
-
-
-	
--- Does work praise
