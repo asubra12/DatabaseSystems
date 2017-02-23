@@ -38,70 +38,70 @@ class PageHeader:
   the Python PageHeader object is directly maintained. It is only when the page
   itself is packed that the page header in the page's buffer is refreshed.
 
-  >>> import io
-  >>> buffer = io.BytesIO(bytes(4096))
-  >>> ph     = PageHeader(buffer=buffer.getbuffer(), tupleSize=16)
-  >>> ph2    = PageHeader.unpack(buffer.getbuffer())
-  >>> ph == ph2
+  import io
+  buffer = io.BytesIO(bytes(4096))
+  ph     = PageHeader(buffer=buffer.getbuffer(), tupleSize=16)
+  ph2    = PageHeader.unpack(buffer.getbuffer())
+  ph == ph2
   True
 
-  >>> buffer2 = io.BytesIO(bytes(2048))
-  >>> ph3     = PageHeader(buffer=buffer2.getbuffer(), tupleSize=16)
-  >>> ph == ph3
+  buffer2 = io.BytesIO(bytes(2048))
+  ph3     = PageHeader(buffer=buffer2.getbuffer(), tupleSize=16)
+  ph == ph3
   False
-
+  #
   ## Dirty bit tests
-  >>> ph.isDirty()
+  ph.isDirty()
   False
-  >>> ph.setDirty(True)
-  >>> ph.isDirty()
+  ph.setDirty(True)
+  ph.isDirty()
   True
-  >>> ph.setDirty(False)
-  >>> ph.isDirty()
+  ph.setDirty(False)
+  ph.isDirty()
   False
 
   ## Tuple count tests
-  >>> ph.hasFreeTuple()
+  ph.hasFreeTuple()
   True
 
-  # First tuple allocated should be at the header boundary
-  >>> ph.nextFreeTuple() == ph.headerSize()
+  # # First tuple allocated should be at the header boundary
+  ph.nextFreeTuple() == ph.headerSize()
   True
-
-  >>> ph.numTuples()
-  1
-
-  >>> tuplesToTest = 10
-  >>> [ph.nextFreeTuple() for i in range(0,tuplesToTest)]
-  [24, 40, 56, 72, 88, 104, 120, 136, 152, 168]
-
-  >>> ph.numTuples() == tuplesToTest+1
+  #
+  ph.numTuples()
+  # 1
+  #
+  tuplesToTest = 10
+  [ph.nextFreeTuple() for i in range(0,tuplesToTest)]
+  # [24, 40, 56, 72, 88, 104, 120, 136, 152, 168]
+  #
+  ph.numTuples() == tuplesToTest+1
   True
-
-  >>> ph.hasFreeTuple()
-  True
-
-  # Check space utilization
-  >>> ph.usedSpace() == (tuplesToTest+1)*ph.tupleSize
-  True
-
-  >>> ph.freeSpace() == 4096 - (ph.headerSize() + ((tuplesToTest+1) * ph.tupleSize))
-  True
-
-  >>> remainingTuples = int(ph.freeSpace() / ph.tupleSize)
-
-  # Fill the page.
-  >>> [ph.nextFreeTuple() for i in range(0, remainingTuples)] # doctest:+ELLIPSIS
-  [184, 200, ..., 4072]
-
-  >>> ph.hasFreeTuple()
-  False
-
-  # No value is returned when trying to exceed the page capacity.
-  >>> ph.nextFreeTuple() == None
-  True
-
-  >>> ph.freeSpace() < ph.tupleSize
+  #
+  ph.hasFreeTuple()
+  # True
+  #
+  # # Check space utilization
+  ph.usedSpace() == (tuplesToTest+1)*ph.tupleSize
+  # True
+  #
+  ph.freeSpace() == 4096 - (ph.headerSize() + ((tuplesToTest+1) * ph.tupleSize))
+  # True
+  #
+  remainingTuples = int(ph.freeSpace() / ph.tupleSize)
+  #
+  # # Fill the page.
+  [ph.nextFreeTuple() for i in range(0, remainingTuples)] # doctest:+ELLIPSIS
+  # [184, 200, ..., 4072]
+  #
+  ph.hasFreeTuple()
+  # False
+  #
+  # # No value is returned when trying to exceed the page capacity.
+  ph.nextFreeTuple() == None
+  # True
+  #
+  ph.freeSpace() < ph.tupleSize
   True
   """
 
@@ -123,13 +123,15 @@ class PageHeader:
   # flags        : a single character byte string indicating the page's status
   # tupleSize    : the tuple size in bytes
   # pageCapacity : the page size in bytes
+
   def __init__(self, **kwargs):
-    buffer               = kwargs.get("buffer", None)
+    buffer               = kwargs.get("buffer", None)  # Should be a BytesIO object
     self.flags           = kwargs.get("flags", b'\x00')
     self.tupleSize       = kwargs.get("tupleSize", None)
     self.pageCapacity    = kwargs.get("pageCapacity", len(buffer))
-    self.freeSpaceOffset = None
-    raise NotImplementedError
+    self.freeSpaceOffset = self.size  # First free space location should be after header
+    buffer[:self.freeSpaceOffset] = self.pack()
+    # raise NotImplementedError
 
   # Page header equality operation based on header fields.
   def __eq__(self, other):
@@ -142,7 +144,7 @@ class PageHeader:
     return hash((self.flags, self.tupleSize, self.pageCapacity, self.freeSpaceOffset))
 
   def headerSize(self):
-    raise NotImplementedError
+    return self.size
 
   # Flag operations.
   def flag(self, mask):
@@ -163,30 +165,37 @@ class PageHeader:
 
   # Tuple count for the header.
   def numTuples(self):
-    return int(self.usedSpace() / self.tupleSize)
+    return int(self.usedSpace() / self.tupleSize)  # usedSpace() ignores header size
 
   # Returns the space available in the page associated with this header.
   def freeSpace(self):
-    raise NotImplementedError
+    return self.pageCapacity-self.freeSpaceOffset  # freeSpaceOffset includes header size
 
   # Returns the space used in the page associated with this header.
   def usedSpace(self):
-    raise NotImplementedError
+    return self.freeSpaceOffset-self.headerSize()  # Ignoring header size
 
   # Returns whether the page has any free space for a tuple.
   def hasFreeTuple(self):
-    raise NotImplementedError
+    return self.pageCapacity-self.freeSpaceOffset >= self.tupleSize
 
   # Returns the page offset of the next free tuple.
   # This should also "allocate" the tuple, such that any subsequent call
   # does not yield the same tupleIndex.
   def nextFreeTuple(self):
-    raise NotImplementedError
+    if (self.freeSpaceOffset + self.tupleSize) > self.pageCapacity:
+      return None
+    tuple_location = self.freeSpaceOffset
+    self.freeSpaceOffset += self.tupleSize
+    return tuple_location
 
   # Returns a triple of (tupleIndex, start, end) for the next free tuple.
   # This should cal nextFreeTuple()
   def nextTupleRange(self):
-    raise NotImplementedError
+    tuple_start = self.nextFreeTuple()
+    tuple_end = self.freeSpaceOffset
+    return (self.numTuples(), tuple_start, tuple_end)
+
 
   # Returns a binary representation of this page header.
   def pack(self):
@@ -231,91 +240,91 @@ class Page(BytesIO):
 
   This class imposes no restriction on the page size.
 
-  >>> from Catalog.Identifiers import FileId, PageId, TupleId
-  >>> from Catalog.Schema      import DBSchema
-
-  # Test harness setup.
-  >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
-  >>> pId    = PageId(FileId(1), 100)
-  >>> p      = Page(pageId=pId, buffer=bytes(4096), schema=schema)
-
-  # Test page packing and unpacking
-  >>> len(p.pack())
-  4096
-  >>> p2 = Page.unpack(pId, p.pack())
-  >>> p.pageId == p2.pageId
-  True
-  >>> p.header == p2.header
-  True
-
-  # Create and insert a tuple
-  >>> e1 = schema.instantiate(1,25)
-  >>> tId = p.insertTuple(schema.pack(e1))
-
-  # Retrieve the previous tuple
-  >>> e2 = schema.unpack(p.getTuple(tId))
-  >>> e2
-  employee(id=1, age=25)
-
-  # Update the tuple.
-  >>> e1 = schema.instantiate(1,28)
-  >>> p.putTuple(tId, schema.pack(e1))
-
-  # Retrieve the update
-  >>> e3 = schema.unpack(p.getTuple(tId))
-  >>> e3
-  employee(id=1, age=28)
-
-  # Compare tuples
-  >>> e1 == e3
-  True
-
-  >>> e2 == e3
-  False
-
-  # Check number of tuples in page
-  >>> p.header.numTuples() == 1
-  True
-
-  # Add some more tuples
-  >>> for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
-  ...    _ = p.insertTuple(tup)
-  ...
-
-  # Check number of tuples in page
-  >>> p.header.numTuples()
-  11
-
-  # Test iterator
-  >>> [schema.unpack(tup).age for tup in p]
-  [28, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
-
-  # Test clearing of first tuple
-  >>> tId = TupleId(p.pageId, 0)
-  >>> sizeBeforeClear = p.header.usedSpace()
-
-  >>> p.clearTuple(tId)
-
-  >>> schema.unpack(p.getTuple(tId))
-  employee(id=0, age=0)
-
-  >>> p.header.usedSpace() == sizeBeforeClear
-  True
-
-  # Check that clearTuple only affects a tuple's contents, not its presence.
-  >>> [schema.unpack(tup).age for tup in p]
-  [0, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
-
-  # Test removal of first tuple
-  >>> sizeBeforeRemove = p.header.usedSpace()
-  >>> p.deleteTuple(tId)
-
-  >>> [schema.unpack(tup).age for tup in p]
-  [20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
-
-  # Check that the page's data segment has been compacted after the remove.
-  >>> p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
-  True
+  # >>> from Catalog.Identifiers import FileId, PageId, TupleId
+  # >>> from Catalog.Schema      import DBSchema
+  #
+  # # Test harness setup.
+  # >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
+  # >>> pId    = PageId(FileId(1), 100)
+  # >>> p      = Page(pageId=pId, buffer=bytes(4096), schema=schema)
+  #
+  # # Test page packing and unpacking
+  # >>> len(p.pack())
+  # 4096
+  # >>> p2 = Page.unpack(pId, p.pack())
+  # >>> p.pageId == p2.pageId
+  # True
+  # >>> p.header == p2.header
+  # True
+  #
+  # # Create and insert a tuple
+  # >>> e1 = schema.instantiate(1,25)
+  # >>> tId = p.insertTuple(schema.pack(e1))
+  #
+  # # Retrieve the previous tuple
+  # >>> e2 = schema.unpack(p.getTuple(tId))
+  # >>> e2
+  # employee(id=1, age=25)
+  #
+  # # Update the tuple.
+  # >>> e1 = schema.instantiate(1,28)
+  # >>> p.putTuple(tId, schema.pack(e1))
+  #
+  # # Retrieve the update
+  # >>> e3 = schema.unpack(p.getTuple(tId))
+  # >>> e3
+  # employee(id=1, age=28)
+  #
+  # # Compare tuples
+  # >>> e1 == e3
+  # True
+  #
+  # >>> e2 == e3
+  # False
+  #
+  # # Check number of tuples in page
+  # >>> p.header.numTuples() == 1
+  # True
+  #
+  # # Add some more tuples
+  # >>> for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
+  # ...    _ = p.insertTuple(tup)
+  # ...
+  #
+  # # Check number of tuples in page
+  # >>> p.header.numTuples()
+  # 11
+  #
+  # # Test iterator
+  # >>> [schema.unpack(tup).age for tup in p]
+  # [28, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
+  #
+  # # Test clearing of first tuple
+  # >>> tId = TupleId(p.pageId, 0)
+  # >>> sizeBeforeClear = p.header.usedSpace()
+  #
+  # >>> p.clearTuple(tId)
+  #
+  # >>> schema.unpack(p.getTuple(tId))
+  # employee(id=0, age=0)
+  #
+  # >>> p.header.usedSpace() == sizeBeforeClear
+  # True
+  #
+  # # Check that clearTuple only affects a tuple's contents, not its presence.
+  # >>> [schema.unpack(tup).age for tup in p]
+  # [0, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
+  #
+  # # Test removal of first tuple
+  # >>> sizeBeforeRemove = p.header.usedSpace()
+  # >>> p.deleteTuple(tId)
+  #
+  # >>> [schema.unpack(tup).age for tup in p]
+  # [20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
+  #
+  # # Check that the page's data segment has been compacted after the remove.
+  # >>> p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
+  # True
 
   """
 

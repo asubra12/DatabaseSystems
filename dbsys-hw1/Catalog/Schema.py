@@ -35,25 +35,25 @@ class Types:
     """
     Converts a type description string into a C-struct format.
 
-    >>> Types.formatType('int')
+    # >>> Types.formatType('int')
     'i'
 
     Character sequences require a fixed-length declaration.
 
-    >>> Types.formatType('char(100)')
+    # >>> Types.formatType('char(100)')
     '100s'
 
     Invalid type description examples.
 
-    >>> Types.formatType('int(100)') == None
+    # >>> Types.formatType('int(100)') == None
     True
-    >>> Types.formatType('char') == None
+    # >>> Types.formatType('char') == None
     True
-    >>> Types.formatType('char(100') == None
+    # >>> Types.formatType('char(100') == None
     True
-    >>> Types.formatType('char100)') == None
+    # >>> Types.formatType('char100)') == None
     True
-    >>> Types.formatType('char(100)asdsa') == None
+    # >>> Types.formatType('char(100)asdsa') == None
     True
     """
     format = None
@@ -77,15 +77,15 @@ class Types:
     """
     Returns a default value for the given type.
 
-    >>> Types.defaultValue('int') == 0
+    # >>> Types.defaultValue('int') == 0
     True
-    >>> Types.defaultValue('int(100)') == None
+    # >>> Types.defaultValue('int(100)') == None
     True
-    >>> Types.defaultValue('float') == 0.0
+    # >>> Types.defaultValue('float') == 0.0
     True
-    >>> Types.defaultValue('double') == 0.0
+    # >>> Types.defaultValue('double') == 0.0
     True
-    >>> Types.defaultValue('char(100)') == (chr(0) * 100)
+    # >>> Types.defaultValue('char(100)') == (chr(0) * 100)
     True
     """
     default = None
@@ -136,10 +136,10 @@ class DBSchema:
   That is, a Python object corresponding to an instance of the schema can
   easily be created using our 'instantiate' method.
 
-  >>> schema = DBSchema('employee', [('id', 'int'), ('dob', 'char(10)'), ('salary', 'int')])
+  # >>> schema = DBSchema('employee', [('id', 'int'), ('dob', 'char(10)'), ('salary', 'int')])
   
-  >>> e1 = schema.instantiate(1, '1990-01-01', 100000)
-  >>> e1
+  # >>> e1 = schema.instantiate(1, '1990-01-01', 100000)
+  # >>> e1
   employee(id=1, dob='1990-01-01', salary=100000)
 
   Also, we can serialize/deserialize the created instances with the 'pack'
@@ -148,26 +148,26 @@ class DBSchema:
   (Note the examples below escape the backslash character to ensure doctests
   run correctly. These escapes should be removed when copy-pasting into the Python REPL.)
 
-  >>> schema.pack(e1)
+  # >>> schema.pack(e1)
   b'\\x01\\x00\\x00\\x001990-01-01\\x00\\x00\\xa0\\x86\\x01\\x00'
-  >>> schema.unpack(b'\\x01\\x00\\x00\\x001990-01-01\\x00\\x00\\xa0\\x86\\x01\\x00')
+  # >>> schema.unpack(b'\\x01\\x00\\x00\\x001990-01-01\\x00\\x00\\xa0\\x86\\x01\\x00')
   employee(id=1, dob='1990-01-01', salary=100000)
 
-  >>> e2 = schema.unpack(schema.pack(e1))
-  >>> e2 == e1
+  # >>> e2 = schema.unpack(schema.pack(e1))
+  # >>> e2 == e1
   True
 
   Finally, the schema description itself can be serialized with the packSchema/unpackSchema
   methods. One example use-case is in our self-describing storage files, where the files
   include the schema of their data records as part of the file header.
-  >>> schemaDesc = schema.packSchema()
-  >>> schema2 = DBSchema.unpackSchema(schemaDesc)
-  >>> schema.name == schema2.name and schema.schema() == schema2.schema()
+  # >>> schemaDesc = schema.packSchema()
+  # >>> schema2 = DBSchema.unpackSchema(schemaDesc)
+  # >>> schema.name == schema2.name and schema.schema() == schema2.schema()
   True
 
   # Test default tuple generation
-  >>> d = schema.default()
-  >>> d.id == 0 and d.dob == (chr(0) * 10) and d.salary == 0
+  # >>> d = schema.default()
+  # >>> d.id == 0 and d.dob == (chr(0) * 10) and d.salary == 0
   True
   """
   

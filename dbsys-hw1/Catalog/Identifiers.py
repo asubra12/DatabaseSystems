@@ -14,9 +14,9 @@ class FileId:
   the database catalog. File identifiers implement pack and unpack methods to
   support their storage on disk.
 
-  >>> id1 = FileId(5)
-  >>> id2 = FileId.unpack(id1.pack())
-  >>> id1 == id2
+  # >>> id1 = FileId(5)
+  # >>> id2 = FileId.unpack(id1.pack())
+  # >>> id1 == id2
   True
   """
 
@@ -47,9 +47,9 @@ class PageId:
   A page identifier class, storing a file identifier and an unsigned short
   representing a page number.
 
-  >>> pId1 = PageId(FileId(5), 100)
-  >>> pId2 = PageId.unpack(pId1.pack())
-  >>> pId1 == pId2
+  # >>> pId1 = PageId(FileId(5), 100)
+  # >>> pId2 = PageId.unpack(pId1.pack())
+  # >>> pId1 == pId2
   True
   """
 
@@ -89,9 +89,9 @@ class TupleId:
 
   The caller must ensure appropriate TupleIds are compared.
 
-  >>> tId1 = TupleId(PageId(FileId(5), 100), 1000)
-  >>> tId2 = TupleId.unpack(tId1.pack())
-  >>> tId1 == tId2
+  # >>> tId1 = TupleId(PageId(FileId(5), 100), 1000)
+  # >>> tId2 = TupleId.unpack(tId1.pack())
+  # >>> tId1 == tId2
   True
   """
 
