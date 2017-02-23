@@ -194,7 +194,7 @@ class PageHeader:
   def nextTupleRange(self):
     tuple_start = self.nextFreeTuple()
     tuple_end = self.freeSpaceOffset
-    return (self.numTuples(), tuple_start, tuple_end)
+    return (tuple_start, tuple_start, tuple_end)
 
 
   # Returns a binary representation of this page header.
@@ -212,7 +212,7 @@ class PageHeader:
                  freeSpaceOffset=values[2], pageCapacity=values[3])
 
 
-class Page(BytesIO):
+class Page:
   """
   A page class, representing a unit of storage for database tuples.
 
@@ -220,7 +220,7 @@ class Page(BytesIO):
   about the state of the page (e.g., its free space offset).
 
   Our page class inherits from an io.BytesIO, providing it an implementation
-  of a in-memory binary stream.
+  of a in-memory binary stream. Not anymore! Fuck that
 
   The page constructor requires a byte buffer in which we can store tuples.
   The user has the responsibility for constructing a suitable buffer, for
@@ -329,6 +329,8 @@ class Page(BytesIO):
   """
 
   headerClass = PageHeader
+  binrepr   = struct.Struct("cHHH")
+
 
   # Page constructor.
   #
@@ -343,10 +345,10 @@ class Page(BytesIO):
   def __init__(self, **kwargs):
     buffer = kwargs.get("buffer", None)
     if buffer:
-      BytesIO.__init__(self, buffer)
       self.pageId = kwargs.get("pageId", None)
       header      = kwargs.get("header", None)
       schema      = kwargs.get("schema", None)
+      self.buffer = BytesIO(buffer).getbuffer()
 
       if self.pageId and header:
         self.header = header
@@ -354,8 +356,6 @@ class Page(BytesIO):
         self.header = self.initializeHeader(**kwargs)
       else:
         raise ValueError("No page identifier provided to page constructor.")
-
-      raise NotImplementedError
 
     else:
       raise ValueError("No backing buffer provided to page constructor.")
@@ -382,6 +382,9 @@ class Page(BytesIO):
     else:
       raise StopIteration
 
+  def getbuffer(self):
+    return self.buffer
+
   # Dirty bit accessors
   def isDirty(self):
     return self.header.isDirty()
@@ -393,7 +396,14 @@ class Page(BytesIO):
 
   # Returns a byte string representing a packed tuple for the given tuple id.
   def getTuple(self, tupleId):
-    raise NotImplementedError
+    if tupleId.pageId != self.pageId:
+      print('Wrong Page!')
+      return None
+    else:
+      tupleStart = tupleId.tupleIndex
+      tupleEnd = tupleStart + self.header.tupleSize
+      return self.buffer[tupleStart:tupleEnd].tobytes()
+
 
   # Updates the (packed) tuple at the given tuple id.
   def putTuple(self, tupleId, tupleData):
@@ -401,7 +411,10 @@ class Page(BytesIO):
 
   # Adds a packed tuple to the page. Returns the tuple id of the newly added tuple.
   def insertTuple(self, tupleData):
-    raise NotImplementedError
+    (tupleIndex, start, end) = self.header.nextTupleRange()
+    self.buffer[start:end] = tupleData
+    tId = TupleId(self.pageId, tupleIndex)
+    return tId
 
   # Zeroes out the contents of the tuple at the given tuple id.
   def clearTuple(self, tupleId):
@@ -415,13 +428,32 @@ class Page(BytesIO):
   # This should refresh the binary representation of the page header contained
   # within the page by packing the header in place.
   def pack(self):
-    raise NotImplementedError
+    packed_header = self.header.pack()
+    self.buffer[:self.header.size] = packed_header
+    return self.buffer.tobytes()
 
   # Creates a Page instance from the binary representation held in the buffer.
   # The pageId of the newly constructed Page instance is given as an argument.
   @classmethod
   def unpack(cls, pageId, buffer):
-    raise NotImplementedError
+    new_buffer = BytesIO(buffer).getbuffer()
+    header = Page.headerClass.unpack(new_buffer[:Page.headerClass.size])
+    return cls(buffer=new_buffer.tobytes(), pageId=pageId, header=header)
+
+  '''
+    def pack(self):
+    return PageHeader.binrepr.pack(
+              self.flags, self.tupleSize,
+              self.freeSpaceOffset, self.pageCapacity)
+
+  # Constructs a page header object from a binary representation held in a byte string.
+  @classmethod
+  def unpack(cls, buffer):
+    values = PageHeader.binrepr.unpack_from(buffer)
+    if len(values) == 4:
+      return cls(buffer=buffer, flags=values[0], tupleSize=values[1],
+                 freeSpaceOffset=values[2], pageCapacity=values[3])
+  '''
 
 
 

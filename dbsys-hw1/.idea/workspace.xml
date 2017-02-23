@@ -23,7 +23,7 @@
       <file leaf-file-name="Schema.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Catalog/Schema.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="15">
+            <state relative-caret-position="-1697">
               <caret line="1" column="34" selection-start-line="1" selection-start-column="29" selection-end-line="1" selection-end-column="34" />
               <folding />
             </state>
@@ -33,11 +33,23 @@
       <file leaf-file-name="Page.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/Storage/Page.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="316">
-              <caret line="334" column="32" selection-start-line="334" selection-start-column="32" selection-end-line="334" selection-end-column="32" />
+            <state relative-caret-position="-1694">
+              <caret line="273" column="26" selection-start-line="273" selection-start-column="26" selection-end-line="273" selection-end-column="26" />
               <folding>
                 <element signature="e#0#22#0" expanded="true" />
-                <marker date="1487844911000" expanded="true" signature="8342:8446" ph="import ..." />
+                <marker date="1487849450000" expanded="true" signature="8351:8455" ph="import ..." />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="unit.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Tests/unit.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="195">
+              <caret line="74" column="30" selection-start-line="74" selection-start-column="30" selection-end-line="74" selection-end-column="30" />
+              <folding>
+                <element signature="e#0#29#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -46,8 +58,8 @@
       <file leaf-file-name="Identifiers.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Catalog/Identifiers.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="188">
-              <caret line="80" column="10" selection-start-line="80" selection-start-column="6" selection-end-line="80" selection-end-column="10" />
+            <state relative-caret-position="-2">
+              <caret line="92" column="30" selection-start-line="92" selection-start-column="30" selection-end-line="92" selection-end-column="30" />
               <folding />
             </state>
           </provider>
@@ -69,7 +81,7 @@
       <file leaf-file-name="File.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Storage/File.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="150">
+            <state relative-caret-position="165">
               <caret line="17" column="20" selection-start-line="17" selection-start-column="20" selection-end-line="17" selection-end-column="20" />
               <folding>
                 <element signature="e#0#44#0" expanded="true" />
@@ -90,7 +102,7 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="701" />
+    <option name="x" value="716" />
     <option name="y" value="23" />
     <option name="width" value="1126" />
     <option name="height" value="920" />
@@ -120,6 +132,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -183,7 +196,6 @@
         </subPane>
       </pane>
       <pane id="Scratches" />
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -341,7 +353,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="701" y="23" width="1126" height="920" extended-state="0" />
+    <frame x="716" y="23" width="1126" height="920" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18206039" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -381,6 +393,54 @@
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/Catalog/Schema.py">
       <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15">
+          <caret line="1" column="34" selection-start-line="1" selection-start-column="29" selection-end-line="1" selection-end-column="34" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Storage/Page.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#22#0" expanded="true" />
+            <marker date="1487849450000" expanded="true" signature="8351:8455" ph="import ..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Catalog/Identifiers.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1200">
+          <caret line="80" column="10" selection-start-line="80" selection-start-column="6" selection-end-line="80" selection-end-column="10" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Storage/SlottedPage.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5190">
+          <caret line="346" column="0" selection-start-line="346" selection-start-column="0" selection-end-line="346" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#30#0" expanded="true" />
+            <marker date="1423093355000" expanded="true" signature="4961:5063" ph="import ..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Storage/File.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="17" column="20" selection-start-line="17" selection-start-column="20" selection-end-line="17" selection-end-column="20" />
+          <folding>
+            <element signature="e#0#44#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Catalog/Schema.py">
+      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2160">
           <caret line="146" column="0" selection-start-line="146" selection-start-column="0" selection-end-line="146" selection-end-column="0" />
           <folding />
@@ -393,7 +453,7 @@
           <caret line="398" column="32" selection-start-line="398" selection-start-column="32" selection-end-line="398" selection-end-column="32" />
           <folding>
             <element signature="e#0#22#0" expanded="true" />
-            <marker date="1487844911000" expanded="true" signature="8342:8446" ph="import ..." />
+            <marker date="1487849450000" expanded="true" signature="8351:8455" ph="import ..." />
           </folding>
         </state>
       </provider>
@@ -429,7 +489,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Storage/File.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
+        <state relative-caret-position="165">
           <caret line="17" column="20" selection-start-line="17" selection-start-column="20" selection-end-line="17" selection-end-column="20" />
           <folding>
             <element signature="e#0#44#0" expanded="true" />
@@ -450,15 +510,25 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Catalog/Identifiers.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="188">
-          <caret line="80" column="10" selection-start-line="80" selection-start-column="6" selection-end-line="80" selection-end-column="10" />
+        <state relative-caret-position="-2">
+          <caret line="92" column="30" selection-start-line="92" selection-start-column="30" selection-end-line="92" selection-end-column="30" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Tests/unit.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="74" column="30" selection-start-line="74" selection-start-column="30" selection-end-line="74" selection-end-column="30" />
+          <folding>
+            <element signature="e#0#29#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/Catalog/Schema.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
+        <state relative-caret-position="-1697">
           <caret line="1" column="34" selection-start-line="1" selection-start-column="29" selection-end-line="1" selection-end-column="34" />
           <folding />
         </state>
@@ -466,11 +536,11 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Storage/Page.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="316">
-          <caret line="334" column="32" selection-start-line="334" selection-start-column="32" selection-end-line="334" selection-end-column="32" />
+        <state relative-caret-position="-1694">
+          <caret line="273" column="26" selection-start-line="273" selection-start-column="26" selection-end-line="273" selection-end-column="26" />
           <folding>
             <element signature="e#0#22#0" expanded="true" />
-            <marker date="1487844911000" expanded="true" signature="8342:8446" ph="import ..." />
+            <marker date="1487849450000" expanded="true" signature="8351:8455" ph="import ..." />
           </folding>
         </state>
       </provider>
