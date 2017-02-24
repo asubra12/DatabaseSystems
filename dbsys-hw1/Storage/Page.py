@@ -240,90 +240,90 @@ class Page:
 
   This class imposes no restriction on the page size.
 
-  # >>> from Catalog.Identifiers import FileId, PageId, TupleId
-  # >>> from Catalog.Schema      import DBSchema
-  #
-  # # Test harness setup.
-  # >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
-  # >>> pId    = PageId(FileId(1), 100)
-  # >>> p      = Page(pageId=pId, buffer=bytes(4096), schema=schema)
-  #
-  # # Test page packing and unpacking
-  # >>> len(p.pack())
+  from Catalog.Identifiers import FileId, PageId, TupleId
+  from Catalog.Schema      import DBSchema
+
+  # Test harness setup.
+  schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
+  pId    = PageId(FileId(1), 100)
+  p      = Page(pageId=pId, buffer=bytes(4096), schema=schema)
+
+  # Test page packing and unpacking
+  len(p.pack())
   # 4096
-  # >>> p2 = Page.unpack(pId, p.pack())
-  # >>> p.pageId == p2.pageId
+  p2 = Page.unpack(pId, p.pack())
+  p.pageId == p2.pageId
   # True
-  # >>> p.header == p2.header
+  p.header == p2.header
   # True
   #
   # # Create and insert a tuple
-  # >>> e1 = schema.instantiate(1,25)
-  # >>> tId = p.insertTuple(schema.pack(e1))
+  e1 = schema.instantiate(1,25)
+  tId = p.insertTuple(schema.pack(e1))
   #
   # # Retrieve the previous tuple
-  # >>> e2 = schema.unpack(p.getTuple(tId))
-  # >>> e2
+  e2 = schema.unpack(p.getTuple(tId))
+  e2
   # employee(id=1, age=25)
   #
   # # Update the tuple.
-  # >>> e1 = schema.instantiate(1,28)
-  # >>> p.putTuple(tId, schema.pack(e1))
+  e1 = schema.instantiate(1,28)
+  p.putTuple(tId, schema.pack(e1))
   #
   # # Retrieve the update
-  # >>> e3 = schema.unpack(p.getTuple(tId))
-  # >>> e3
+  e3 = schema.unpack(p.getTuple(tId))
+  e3
   # employee(id=1, age=28)
   #
   # # Compare tuples
-  # >>> e1 == e3
+  e1 == e3
   # True
   #
-  # >>> e2 == e3
+  e2 == e3
   # False
   #
   # # Check number of tuples in page
-  # >>> p.header.numTuples() == 1
+  p.header.numTuples() == 1
   # True
   #
   # # Add some more tuples
-  # >>> for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
-  # ...    _ = p.insertTuple(tup)
-  # ...
+  for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
+      _ = p.insertTuple(tup)
+
   #
   # # Check number of tuples in page
-  # >>> p.header.numTuples()
+  p.header.numTuples()
   # 11
   #
   # # Test iterator
-  # >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   # [28, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
   #
   # # Test clearing of first tuple
-  # >>> tId = TupleId(p.pageId, 0)
-  # >>> sizeBeforeClear = p.header.usedSpace()
+  tId = TupleId(p.pageId, 8)  # This is changed now!!!!
+  sizeBeforeClear = p.header.usedSpace()
   #
-  # >>> p.clearTuple(tId)
+  p.clearTuple(tId)
   #
-  # >>> schema.unpack(p.getTuple(tId))
+  schema.unpack(p.getTuple(tId))
   # employee(id=0, age=0)
   #
-  # >>> p.header.usedSpace() == sizeBeforeClear
+  p.header.usedSpace() == sizeBeforeClear
   # True
   #
   # # Check that clearTuple only affects a tuple's contents, not its presence.
-  # >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   # [0, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
   #
   # # Test removal of first tuple
-  # >>> sizeBeforeRemove = p.header.usedSpace()
-  # >>> p.deleteTuple(tId)
+  sizeBeforeRemove = p.header.usedSpace()
+  p.deleteTuple(tId)
   #
-  # >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   # [20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
   #
   # # Check that the page's data segment has been compacted after the remove.
-  # >>> p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
+  p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
   # True
 
   """
@@ -349,6 +349,9 @@ class Page:
       header      = kwargs.get("header", None)
       schema      = kwargs.get("schema", None)
       self.buffer = BytesIO(buffer).getbuffer()
+      # self.TupleIdx = 0
+      # self.tIdstore = [None] * math.floor(((len(self.buffer)-self.header.size)/self.header.tupleSize))
+
 
       if self.pageId and header:
         self.header = header
@@ -371,13 +374,13 @@ class Page:
 
   # Iterator
   def __iter__(self):
-    self.iterTupleIdx = 0
+    self.iterTupleIdx = self.header.size
     return self
 
   def __next__(self):
     t = self.getTuple(TupleId(self.pageId, self.iterTupleIdx))
     if t:
-      self.iterTupleIdx += 1
+      self.iterTupleIdx += self.header.tupleSize
       return t
     else:
       raise StopIteration
@@ -407,7 +410,13 @@ class Page:
 
   # Updates the (packed) tuple at the given tuple id.
   def putTuple(self, tupleId, tupleData):
-    raise NotImplementedError
+    if tupleId.pageId != self.pageId:
+      print('Wrong Page!')
+      return None
+    tupleStart = tupleId.tupleIndex
+    tupleEnd = tupleId.tupleIndex + self.header.tupleSize
+    self.buffer[tupleStart:tupleEnd] = tupleData
+
 
   # Adds a packed tuple to the page. Returns the tuple id of the newly added tuple.
   def insertTuple(self, tupleData):
@@ -418,11 +427,29 @@ class Page:
 
   # Zeroes out the contents of the tuple at the given tuple id.
   def clearTuple(self, tupleId):
-    raise NotImplementedError
+    if tupleId.pageId != self.pageId:
+      print('Wrong Page!')
+      return None
+    tupleStart = tupleId.tupleIndex
+    tupleEnd = tupleStart + self.header.tupleSize
+    self.buffer[tupleStart:tupleEnd] = b'\x00'*self.header.tupleSize
+    return
+
 
   # Removes the tuple at the given tuple id, shifting subsequent tuples.
   def deleteTuple(self, tupleId):
-    raise NotImplementedError
+    if tupleId.pageId != self.pageId:
+      print('Wrong Page!')
+      return None
+    beginSlice = tupleId.tupleIndex
+    endSlice = tupleId.tupleIndex + self.header.tupleSize
+    a = self.buffer[:beginSlice].tobytes()
+    b = self.buffer[endSlice:].tobytes()
+    c = a + b + bytes(self.header.tupleSize)
+    self.buffer = BytesIO(c).getbuffer()
+    self.header.freeSpaceOffset -= self.header.tupleSize
+    return
+
 
   # Returns a binary representation of this page.
   # This should refresh the binary representation of the page header contained

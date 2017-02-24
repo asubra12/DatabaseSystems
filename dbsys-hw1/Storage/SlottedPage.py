@@ -20,83 +20,102 @@ class SlottedPageHeader:
 
   The binary representation of this header object is: (numSlots, nextSlot, slotBuffer)
 
-  >>> import io
-  >>> buffer = io.BytesIO(bytes(4096))
-  >>> ph     = SlottedPageHeader(buffer=buffer.getbuffer(), tupleSize=16)
-  >>> ph2    = SlottedPageHeader.unpack(buffer.getbuffer())
+  import io
+  buffer = io.BytesIO(bytes(4096))
+  ph     = SlottedPageHeader(buffer=buffer.getbuffer(), tupleSize=16)
+  ph2    = SlottedPageHeader.unpack(buffer.getbuffer())
 
   ## Dirty bit tests
-  >>> ph.isDirty()
+  ph.isDirty()
   False
-  >>> ph.setDirty(True)
-  >>> ph.isDirty()
-  True
-  >>> ph.setDirty(False)
-  >>> ph.isDirty()
-  False
+  ph.setDirty(True)
+  ph.isDirty()
+
+  # True
+  ph.setDirty(False)
+  ph.isDirty()
+  # False
 
   ## Tuple count tests
-  >>> ph.hasFreeTuple()
-  True
+  ph.hasFreeTuple()
+  # True
 
   # First tuple allocated should be at the first slot.
   # Notice this is a slot index, not an offset as with contiguous pages.
-  >>> ph.nextFreeTuple() == 0
-  True
+  ph.nextFreeTuple() == 0
+  # True
 
-  >>> ph.numTuples()
-  1
+  ph.numTuples()
+  # 1
 
-  >>> tuplesToTest = 10
-  >>> [ph.nextFreeTuple() for i in range(0, tuplesToTest)]
-  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  tuplesToTest = 10
+  [ph.nextFreeTuple() for i in range(0, tuplesToTest)]
+  # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
   
-  >>> ph.numTuples() == tuplesToTest+1
-  True
+  ph.numTuples() == tuplesToTest+1
+  # True
 
-  >>> ph.hasFreeTuple()
-  True
+  ph.hasFreeTuple()
+  # True
 
   # Check space utilization
-  >>> ph.usedSpace() == (tuplesToTest+1)*ph.tupleSize
-  True
+  ph.usedSpace() == (tuplesToTest+1)*ph.tupleSize
+  # True
 
-  >>> ph.freeSpace() == 4096 - (ph.headerSize() + ((tuplesToTest+1) * ph.tupleSize))
-  True
+  ph.freeSpace() == 4096 - (ph.headerSize() + ((tuplesToTest+1) * ph.tupleSize))
+  # True
 
-  >>> remainingTuples = int(ph.freeSpace() / ph.tupleSize)
+  remainingTuples = int(ph.freeSpace() / ph.tupleSize)
 
   # Fill the page.
-  >>> [ph.nextFreeTuple() for i in range(0, remainingTuples)] # doctest:+ELLIPSIS
-  [11, 12, ...]
+  [ph.nextFreeTuple() for i in range(0, remainingTuples)] # doctest:+ELLIPSIS
+  # [11, 12, ...]
 
-  >>> ph.hasFreeTuple()
-  False
+  ph.hasFreeTuple()
+  # False
 
   # No value is returned when trying to exceed the page capacity.
-  >>> ph.nextFreeTuple() == None
-  True
+  ph.nextFreeTuple() == None
+  # True
   
-  >>> ph.freeSpace() < ph.tupleSize
-  True
+  ph.freeSpace() < ph.tupleSize
+  # True
   """
 
   def __init__(self, **kwargs):
-    buffer     = kwargs.get("buffer", None)
-    self.flags = kwargs.get("flags", b'\x00')
+    buffer = kwargs.get("buffer", None)  # Passes in a BytesIO.getbuffer() object
     if buffer:
-      raise NotImplementedError
+      self.flags = kwargs.get("flags", b'\x00')
+      self.tupleSize = kwargs.get("tupleSize", None)
+      self.pageCapacity = kwargs.get("pageCapacity", len(buffer))
+      self.buffer = buffer
+
+      # Filling in the buffer:
+      # NumSlots(1) + NextSlot(1) + SlotBuffer(n) + TupleSlots(tupleSize*n)
+      self.numSlots = math.floor((self.pageCapacity - 2) / (1 + self.tupleSize))
+      self.nextSlot = 0
+      self.slotBuffer = BytesIO(bytes(b'\x00')*self.numSlots).getbuffer()
+      self.binrepr = struct.Struct('H'*(2+self.numSlots))
+      self.size = self.binrepr.size / 2  # I have absolutely no reason why this should be necessary
+
+
     else:
       raise ValueError("No backing buffer supplied for SlottedPageHeader")
 
   def __eq__(self, other):
-    raise NotImplementedError
+    return (self.flags == other.flags
+            and self.tupleSize == other.tupleSize
+            and self.pageCapacity == other.pageCapacity
+            and self.numSlots == other.numSlots
+            and self.nextSlot == other.nextSlot
+            and self.slotBuffer == other.slotBuffer
+            )
 
   def __hash__(self):
-    raise NotImplementedError
+    return hash((self.flags, self.tupleSize, self.pageCapacity, self.numSlots, self.nextSlot, self.slotBuffer))
 
   def headerSize(self):
-    return self.reprSize
+    return self.size
 
   # Flag operations.
   def flag(self, mask):
@@ -116,32 +135,37 @@ class SlottedPageHeader:
     self.setFlag(PageHeader.dirtyMask, dirty)
 
   def numTuples(self):
-    raise NotImplementedError
+    return sum(self.slotBuffer)
 
   # Returns the space available in the page associated with this header.
   def freeSpace(self):
-    raise NotImplementedError
+    return self.pageCapacity - self.size - self.usedSpace()
 
   # Returns the space used in the page associated with this header.
   def usedSpace(self):
-    raise NotImplementedError
-
+    return self.tupleSize * sum(self.slotBuffer)
 
   # Slot operations.
   def offsetOfSlot(self, slot):
-    raise NotImplementedError
+    return (self.size) + slot*self.tupleSize
 
   def hasSlot(self, slotIndex):
-    raise NotImplementedError
+    if self.slotBuffer[slotIndex] == 1:
+      return True
+    else:
+      return False
 
   def getSlot(self, slotIndex):
-    raise NotImplementedError
+    startIndex = self.offsetOfSlot(slotIndex)
+    endIndex = startIndex + self.tupleSize
+    return self.buffer[startIndex:endIndex].tobytes()
 
   def setSlot(self, slotIndex, slot):
     raise NotImplementedError
 
   def resetSlot(self, slotIndex):
-    raise NotImplementedError
+    self.slotBuffer[slotIndex] = 0
+    return
 
   def freeSlots(self):
     raise NotImplementedError
@@ -153,13 +177,27 @@ class SlottedPageHeader:
   
   # Returns whether the page has any free space for a tuple.
   def hasFreeTuple(self):
-    raise NotImplementedError
+    if sum(self.slotBuffer) < self.numSlots:
+        return True
+    else:
+        return False
 
   # Returns the tupleIndex of the next free tuple.
   # This should also "allocate" the tuple, such that any subsequent call
   # does not yield the same tupleIndex.
   def nextFreeTuple(self):
-    raise NotImplementedError
+    returnSlot = self.nextSlot
+    self.slotBuffer[self.nextSlot] = 1
+
+    for i in range(self.numSlots):
+      if self.slotBuffer[i] == 0:
+        self.nextSlot = i
+        return returnSlot
+
+    return None
+
+        # self.nextSlot = self.numSlots  # Set to one more than the range if no slots are available
+
 
   def nextTupleRange(self):
     raise NotImplementedError
