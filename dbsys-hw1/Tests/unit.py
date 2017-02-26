@@ -67,7 +67,7 @@ class Hw1PublicTests(unittest.TestCase):
     self.assertIsNone(p.getTuple(tId), 'Deleted tuple is still present in the page!')
 
   # Stress Tests:
-  def testPageInsertMany(self):
+  def testPageInsertMany(self): #
     schema = self.makeSchema()
     p = self.makeEmptyPage()
     # Insert 1000 tuples, making sure no errors occur
