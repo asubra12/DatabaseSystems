@@ -199,8 +199,9 @@ class SlottedPageHeader:
         if self.slotBuffer[i] == 0:
           self.nextSlot = i
           return returnSlot
-        self.nextSlot = None
-        return returnSlot
+
+      self.nextSlot = None
+      return returnSlot
 
   def nextTupleRange(self):
     nextSlot = self.nextFreeTuple()
