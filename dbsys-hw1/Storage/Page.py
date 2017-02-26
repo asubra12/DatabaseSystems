@@ -183,11 +183,12 @@ class PageHeader:
   # This should also "allocate" the tuple, such that any subsequent call
   # does not yield the same tupleIndex.
   def nextFreeTuple(self):
-    if (self.freeSpaceOffset + self.tupleSize) > self.pageCapacity:
+    if self.hasFreeTuple():
+      tuple_location = self.freeSpaceOffset
+      self.freeSpaceOffset += self.tupleSize
+      return tuple_location
+    else:
       return None
-    tuple_location = self.freeSpaceOffset
-    self.freeSpaceOffset += self.tupleSize
-    return tuple_location
 
   # Returns a triple of (tupleIndex, start, end) for the next free tuple.
   # This should cal nextFreeTuple()
@@ -349,6 +350,7 @@ class Page:
       header      = kwargs.get("header", None)
       schema      = kwargs.get("schema", None)
       self.buffer = BytesIO(buffer).getbuffer()
+      self.tuples = []
       # self.TupleIdx = 0
       # self.tIdstore = [None] * math.floor(((len(self.buffer)-self.header.size)/self.header.tupleSize))
 
@@ -375,12 +377,14 @@ class Page:
   # Iterator
   def __iter__(self):
     self.iterTupleIdx = self.header.size
+    self.count = 0
     return self
 
   def __next__(self):
     t = self.getTuple(TupleId(self.pageId, self.iterTupleIdx))
-    if t:
+    if t and self.count < len(self.tuples):
       self.iterTupleIdx += self.header.tupleSize
+      self.count += 1
       return t
     else:
       raise StopIteration
@@ -403,10 +407,12 @@ class Page:
       print('Wrong Page!')
       return None
     else:
-      tupleStart = tupleId.tupleIndex
-      tupleEnd = tupleStart + self.header.tupleSize
-      return self.buffer[tupleStart:tupleEnd].tobytes()
-
+      for i in self.tuples:
+        if i.__eq__(tupleId):
+          tupleStart = tupleId.tupleIndex
+          tupleEnd = tupleStart + self.header.tupleSize
+          return self.buffer[tupleStart:tupleEnd].tobytes()
+      return None
 
   # Updates the (packed) tuple at the given tuple id.
   def putTuple(self, tupleId, tupleData):
@@ -420,10 +426,15 @@ class Page:
 
   # Adds a packed tuple to the page. Returns the tuple id of the newly added tuple.
   def insertTuple(self, tupleData):
-    (tupleIndex, start, end) = self.header.nextTupleRange()
-    self.buffer[start:end] = tupleData
-    tId = TupleId(self.pageId, tupleIndex)
-    return tId
+
+    if self.header.hasFreeTuple():
+      (tupleIndex, start, end) = self.header.nextTupleRange()
+      self.buffer[start:end] = tupleData
+      tId = TupleId(self.pageId, tupleIndex)
+      self.tuples.append(tId)
+      return tId
+    else:
+      return None
 
   # Zeroes out the contents of the tuple at the given tuple id.
   def clearTuple(self, tupleId):
@@ -448,8 +459,13 @@ class Page:
     c = a + b + bytes(self.header.tupleSize)
     self.buffer = BytesIO(c).getbuffer()
     self.header.freeSpaceOffset -= self.header.tupleSize
-    return
 
+    # shifting subsequent tuples
+    self.tuples.remove(tupleId)
+    for i in self.tuples:
+      if i.tupleIndex > beginSlice:
+        i.tupleIndex -= self.header.tupleSize
+    return
 
   # Returns a binary representation of this page.
   # This should refresh the binary representation of the page header contained
