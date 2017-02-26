@@ -244,87 +244,87 @@ class SlottedPage:
   A slotted page interprets the tupleIndex field in a TupleId object as
   a slot index.
 
-  >>> from Catalog.Identifiers import FileId, PageId, TupleId
-  >>> from Catalog.Schema      import DBSchema
+  from Catalog.Identifiers import FileId, PageId, TupleId
+  from Catalog.Schema      import DBSchema
 
   # Test harness setup.
-  >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
-  >>> pId    = PageId(FileId(1), 100)
-  >>> p      = SlottedPage(pageId=pId, buffer=bytes(4096), schema=schema)
+  schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
+  pId    = PageId(FileId(1), 100)
+  p      = SlottedPage(pageId=pId, buffer=bytes(4096), schema=schema)
 
   # Validate header initialization
-  >>> p.header.numTuples() == 0 and p.header.usedSpace() == 0
+  p.header.numTuples() == 0 and p.header.usedSpace() == 0
   True
 
   # Create and insert a tuple
-  >>> e1 = schema.instantiate(1,25)
-  >>> tId = p.insertTuple(schema.pack(e1))
+  e1 = schema.instantiate(1,25)
+  tId = p.insertTuple(schema.pack(e1))
 
-  >>> tId.tupleIndex
+  tId.tupleIndex
   0
 
   # Retrieve the previous tuple
-  >>> e2 = schema.unpack(p.getTuple(tId))
-  >>> e2
+  e2 = schema.unpack(p.getTuple(tId))
+  e2
   employee(id=1, age=25)
 
   # Update the tuple.
-  >>> e1 = schema.instantiate(1,28)
-  >>> p.putTuple(tId, schema.pack(e1))
+  e1 = schema.instantiate(1,28)
+  p.putTuple(tId, schema.pack(e1))
 
   # Retrieve the update
-  >>> e3 = schema.unpack(p.getTuple(tId))
-  >>> e3
+  e3 = schema.unpack(p.getTuple(tId))
+  e3
   employee(id=1, age=28)
 
   # Compare tuples
-  >>> e1 == e3
+  e1 == e3
   True
 
-  >>> e2 == e3
+  e2 == e3
   False
 
   # Check number of tuples in page
-  >>> p.header.numTuples() == 1
+  p.header.numTuples() == 1
   True
 
   # Add some more tuples
-  >>> for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
+  for tup in [schema.pack(schema.instantiate(i, 2*i+20)) for i in range(10)]:
   ...    _ = p.insertTuple(tup)
   ...
 
   # Check number of tuples in page
-  >>> p.header.numTuples()
+  p.header.numTuples()
   11
 
   # Test iterator
-  >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   [28, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
 
   # Test clearing of first tuple
-  >>> tId = TupleId(p.pageId, 0)
-  >>> sizeBeforeClear = p.header.usedSpace()
-  >>> p.clearTuple(tId)
+  tId = TupleId(p.pageId, 0)
+  sizeBeforeClear = p.header.usedSpace()
+  p.clearTuple(tId)
 
-  >>> schema.unpack(p.getTuple(tId))
+  schema.unpack(p.getTuple(tId))
   employee(id=0, age=0)
 
-  >>> p.header.usedSpace() == sizeBeforeClear
+  p.header.usedSpace() == sizeBeforeClear
   True
 
   # Check that clearTuple only affects a tuple's contents, not its presence.
-  >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   [0, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
 
   # Test removal of first tuple
-  >>> sizeBeforeRemove = p.header.usedSpace()
-  >>> p.deleteTuple(tId)
+  sizeBeforeRemove = p.header.usedSpace()
+  p.deleteTuple(tId)
 
-  >>> [schema.unpack(tup).age for tup in p]
+  [schema.unpack(tup).age for tup in p]
   [20, 22, 24, 26, 28, 30, 32, 34, 36, 38]
 
   # Check that the page's slots have tracked the deletion.
-  >>> p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
+  p.header.usedSpace() == (sizeBeforeRemove - p.header.tupleSize)
   True
 
   """
@@ -344,10 +344,10 @@ class SlottedPage:
   def __init__(self, **kwargs):
     buffer = kwargs.get("buffer", None)
     if buffer:
-      BytesIO.__init__(self, buffer)
       self.pageId = kwargs.get("pageId", None)
       header      = kwargs.get("header", None)
       schema      = kwargs.get("schema", None)
+      self.buffer = BytesIO(buffer).getbuffer()
 
       if self.pageId and header:
         self.header = header
@@ -356,7 +356,7 @@ class SlottedPage:
       else:
         raise ValueError("No page identifier provided to page constructor.")
 
-      raise NotImplementedError
+      # raise NotImplementedError
 
     else:
       raise ValueError("No backing buffer provided to page constructor.")
@@ -366,52 +366,127 @@ class SlottedPage:
   def initializeHeader(self, **kwargs):
     schema = kwargs.get("schema", None)
     if schema:
-      return SlottedPageHeader(buffer=self.getbuffer(), tupleSize=schema.size)
+      return SlottedPageHeader(buffer=self.buffer, tupleSize=schema.size)
     else:
       raise ValueError("No schema provided when constructing a slotted page.")
 
   # Tuple iterator.
   def __iter__(self):
-    raise NotImplementedError
+    self.filledSlots = []
+    self.it = 0
+
+    for i in range(self.header.numSlots):
+      if self.header.slotBuffer[i] == 1:
+        self.filledSlots.append(i)
+
+    if len(self.filledSlots) > 0:
+      self.iterSlot = self.filledSlots[self.it]
+    else:
+      self.iterSlot = None
+
+    return self
 
   def __next__(self):
-    raise NotImplementedError
+    if self.it < len(self.filledSlots):
+      self.iterSlot = self.filledSlots[self.it]
+      t = self.getTuple(TupleId(self.pageId, self.iterSlot))
 
+      self.it += 1
+      return t
+
+    else:
+      raise StopIteration
+
+
+
+    # if self.iterSlot:
+    #   if self.it < len(self.filledSlots):
+    #     t = self.getTuple(TupleId(self.pageId, self.iterSlot))
+    #     self.it += 1
+    #
+    #     try:
+    #       self.iterSlot = self.filledSlots[self.it]
+    #     except IndexError:
+    #       pass
+    #
+    #     return t
+    #   raise StopIteration
+    # raise StopIteration
   # Tuple accessor methods
 
   # Returns a byte string representing a packed tuple for the given tuple id.
   def getTuple(self, tupleId):
-    raise NotImplementedError
+    slotIndex = tupleId.tupleIndex
+    if self.header.hasSlot(slotIndex):
+      slotStart = self.header.offsetOfSlot(slotIndex)
+      slotEnd = slotStart + self.header.tupleSize
+      return self.buffer[slotStart:slotEnd]
+    else:
+      return None
 
   # Updates the (packed) tuple at the given tuple id.
   def putTuple(self, tupleId, tupleData):
-    raise NotImplementedError
+    slotIndex = tupleId.tupleIndex
+    slotStart = self.header.offsetOfSlot(slotIndex)
+    slotEnd = slotStart + self.header.tupleSize
+
+    self.buffer[slotStart:slotEnd] = tupleData
+    return
+
 
   # Adds a packed tuple to the page. Returns the tuple id of the newly added tuple.
   def insertTuple(self, tupleData):
-    raise NotImplementedError
+    (slot, tupleStart, tupleEnd) = self.header.nextTupleRange()  # Slot will be 'None' When there is no more space
+    self.buffer[tupleStart:tupleEnd] = tupleData
+    self.header.setSlot(slot, 1)
+    tId = TupleId(self.pageId, slot)
+    return tId
 
   # Zeroes out the contents of the tuple at the given tuple id.
   def clearTuple(self, tupleId):
-    raise NotImplementedError
+    slot = tupleId.tupleIndex
+    slotStart = self.header.offsetOfSlot(slot)
+    slotEnd = slotStart + self.header.tupleSize
+    self.buffer[slotStart:slotEnd] = b'\x00'*self.header.tupleSize
 
   # Removes the tuple at the given tuple id, shifting subsequent tuples.
   def deleteTuple(self, tupleId):
-    raise NotImplementedError
+    slot = tupleId.tupleIndex
+    self.header.setSlot(slot, 0)
+    return
+
 
   # Returns a binary representation of this page.
   # This should refresh the binary representation of the page header contained
   # within the page by packing the header in place.
   def pack(self):
-    raise NotImplementedError
+    packedHeader = self.header.pack()
+    self.buffer[:self.header.size] = packedHeader
+    return self.buffer.tobytes()
 
   # Creates a Page instance from the binary representation held in the buffer.
   # The pageId of the newly constructed Page instance is given as an argument.
   @classmethod
   def unpack(cls, pageId, buffer):
-    raise NotImplementedError
+    newBuffer = BytesIO(buffer).getbuffer()
 
 
+
+'''
+  def pack(self):
+    packed_header = self.header.pack()
+    self.buffer[:self.header.size] = packed_header
+    return self.buffer.tobytes()
+
+  # Creates a Page instance from the binary representation held in the buffer.
+  # The pageId of the newly constructed Page instance is given as an argument.
+  @classmethod
+  def unpack(cls, pageId, buffer):
+    new_buffer = BytesIO(buffer).getbuffer()
+    header = Page.headerClass.unpack(new_buffer[:Page.headerClass.size])
+    return cls(buffer=new_buffer.tobytes(), pageId=pageId, header=header)
+
+'''
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
