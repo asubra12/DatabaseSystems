@@ -189,15 +189,18 @@ class SlottedPageHeader:
   # This should also "allocate" the tuple, such that any subsequent call
   # does not yield the same tupleIndex.
   def nextFreeTuple(self):
-    returnSlot = self.nextSlot
-    self.slotBuffer[self.nextSlot] = 1
+    if self.usedSlots == self.numSlots:
+      return None
+    else:
+      returnSlot = self.nextSlot
+      self.slotBuffer[self.nextSlot] = 1
 
-    for i in range(self.numSlots):
-      if self.slotBuffer[i] == 0:
-        self.nextSlot = i
+      for i in range(self.numSlots):
+        if self.slotBuffer[i] == 0:
+          self.nextSlot = i
+          return returnSlot
+        self.nextSlot = None
         return returnSlot
-
-    return None
 
   def nextTupleRange(self):
     nextSlot = self.nextFreeTuple()
@@ -259,6 +262,14 @@ class SlottedPage:
   # Create and insert a tuple
   e1 = schema.instantiate(1,25)
   tId = p.insertTuple(schema.pack(e1))
+
+  len(p.pack())
+  # 4096
+  p2 = SlottedPage.unpack(pId, p.pack())
+  p.pageId == p2.pageId
+  # True
+  p.header == p2.header
+  # True
 
   tId.tupleIndex
   0
@@ -397,23 +408,6 @@ class SlottedPage:
     else:
       raise StopIteration
 
-
-
-    # if self.iterSlot:
-    #   if self.it < len(self.filledSlots):
-    #     t = self.getTuple(TupleId(self.pageId, self.iterSlot))
-    #     self.it += 1
-    #
-    #     try:
-    #       self.iterSlot = self.filledSlots[self.it]
-    #     except IndexError:
-    #       pass
-    #
-    #     return t
-    #   raise StopIteration
-    # raise StopIteration
-  # Tuple accessor methods
-
   # Returns a byte string representing a packed tuple for the given tuple id.
   def getTuple(self, tupleId):
     slotIndex = tupleId.tupleIndex
@@ -436,11 +430,15 @@ class SlottedPage:
 
   # Adds a packed tuple to the page. Returns the tuple id of the newly added tuple.
   def insertTuple(self, tupleData):
-    (slot, tupleStart, tupleEnd) = self.header.nextTupleRange()  # Slot will be 'None' When there is no more space
-    self.buffer[tupleStart:tupleEnd] = tupleData
-    self.header.setSlot(slot, 1)
-    tId = TupleId(self.pageId, slot)
-    return tId
+    if self.header.hasFreeTuple():
+      (slot, tupleStart, tupleEnd) = self.header.nextTupleRange()  # Slot will be 'None' When there is no more space
+      self.buffer[tupleStart:tupleEnd] = tupleData
+      self.header.setSlot(slot, 1)
+      tId = TupleId(self.pageId, slot)
+      return tId
+    else:
+      return None
+
 
   # Zeroes out the contents of the tuple at the given tuple id.
   def clearTuple(self, tupleId):
@@ -468,11 +466,35 @@ class SlottedPage:
   # The pageId of the newly constructed Page instance is given as an argument.
   @classmethod
   def unpack(cls, pageId, buffer):
-    newBuffer = BytesIO(buffer).getbuffer()
+    numSlots = struct.unpack('H', buffer[:2])[0]
+    nextSlot = struct.unpack('H', buffer[2:4])[0]
+    headerLen = 4 + numSlots
+    slotBuffer = BytesIO(buffer[4:headerLen]).getbuffer()
+    tupleSize = math.floor((len(buffer)-headerLen) / numSlots)
+    buffer = BytesIO(buffer).getbuffer()
+
+    header = SlottedPage.headerClass(buffer=buffer, tupleSize=tupleSize, numSlots=numSlots,
+                                     nextSlot=nextSlot, slotBuffer=slotBuffer)
+    return cls(buffer=buffer, pageId=pageId, header=header)
+
+
+
 
 
 
 '''
+
+  @classmethod
+  def unpack(cls, buffer):
+    numSlots = struct.unpack('H', buffer[:2])[0]
+    nextSlot = struct.unpack('H', buffer[2:4])[0]
+    headerLen = 4 + numSlots
+    slotBuffer = BytesIO(buffer[4:headerLen].tobytes()).getbuffer()
+    tupleSize = math.floor((len(buffer)-headerLen) / numSlots)
+
+    return cls(buffer=buffer, tupleSize=tupleSize, numSlots=numSlots, nextSlot=nextSlot, slotBuffer=slotBuffer)
+
+
   def pack(self):
     packed_header = self.header.pack()
     self.buffer[:self.header.size] = packed_header

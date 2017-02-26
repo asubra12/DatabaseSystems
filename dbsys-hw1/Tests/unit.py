@@ -9,8 +9,10 @@ from Catalog.Schema import DBSchema
 import sys
 import unittest
 
+
+
 # Change this to 'pageClass = SlottedPage' to test the SlottedPage class.
-pageClass = Page
+pageClass = SlottedPage
 
 class Hw1PublicTests(unittest.TestCase):
   ###########################################################
