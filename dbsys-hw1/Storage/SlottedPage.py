@@ -189,18 +189,18 @@ class SlottedPageHeader:
   # This should also "allocate" the tuple, such that any subsequent call
   # does not yield the same tupleIndex.
   def nextFreeTuple(self):
-    if self.usedSlots == self.numSlots:
-      return None
+    if self.hasFreeTuple() == False:
+      return None  # should return None if there are no spots left
     else:
-      returnSlot = self.nextSlot
-      self.slotBuffer[self.nextSlot] = 1
+      returnSlot = self.nextSlot  # the next free tuple
+      self.slotBuffer[self.nextSlot] = 1  # Set the next free tuple to full
 
-      for i in range(self.numSlots):
+      for i in range(self.numSlots):  # Look for the next Slot available
         if self.slotBuffer[i] == 0:
           self.nextSlot = i
           return returnSlot
 
-      self.nextSlot = None
+      self.nextSlot = self.numSlots + 1  # Case where returnSlot was the last slot available
       return returnSlot
 
   def nextTupleRange(self):
@@ -510,6 +510,6 @@ class SlottedPage:
     return cls(buffer=new_buffer.tobytes(), pageId=pageId, header=header)
 
 '''
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()

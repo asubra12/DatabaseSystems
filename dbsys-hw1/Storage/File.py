@@ -149,6 +149,7 @@ class StorageFile:
 
   import Storage.BufferPool
   from Storage.BufferPool import *
+  f.file.close()
   schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
   bp = BufferPool()
   fm = FileManager(bufferPool=bp)
@@ -193,38 +194,38 @@ class StorageFile:
   f.flush()
   #
   # # Check the number of pages, and the file size.
-  # >>> f.numPages() == 2
+  f.numPages() == 2
   # True
   #
-  # >>> f.size() == (f.headerSize() + f.pageSize() * 2)
+  f.size() == (f.headerSize() + f.pageSize() * 2)
   # True
   #
   # # Read pages in reverse order testing offset and page index.
-  # >>> pageBuffer = bytearray(f.pageSize())
-  # >>> pIn1 = f.readPage(pId1, pageBuffer)
-  # >>> pIn1.pageId == pId1
+  pageBuffer = bytearray(f.pageSize())
+  pIn1 = f.readPage(pId1, pageBuffer)
+  pIn1.pageId == pId1
   # True
   #
-  # >>> f.pageOffset(pIn1.pageId) == f.header.size + f.pageSize()
+  f.pageOffset(pIn1.pageId) == f.header.size + f.pageSize()
   # True
   #
-  # >>> pIn = f.readPage(pId, pageBuffer)
-  # >>> pIn.pageId == pId
+  pIn = f.readPage(pId, pageBuffer)
+  pIn.pageId == pId
   # True
   #
-  # >>> f.pageOffset(pIn.pageId) == f.header.size
+  f.pageOffset(pIn.pageId) == f.header.size
   # True
   #
   # # Test page header iterator
-  # >>> [p[1].usedSpace() for p in f.headers()]
+  [p[1].usedSpace() for p in f.headers()]  # Needs BufferPool stuff to be implemented
   # [80, 80]
   #
   # # Test page iterator
-  # >>> [p[1].pageId.pageIndex for p in f.pages()]
+  [p[1].pageId.pageIndex for p in f.pages()]
   # [0, 1]
   #
   # # Test tuple iterator
-  # >>> [schema.unpack(tup).id for tup in f.tuples()] == list(range(20))
+  [schema.unpack(tup).id for tup in f.tuples()] == list(range(20))
   # True
   #
   # # Check buffer pool utilization
@@ -260,6 +261,7 @@ class StorageFile:
     self.filePath  = kwargs.get("filePath", None)
 
     header = kwargs.get("header", None)
+    self.freePages = [] # Use a tuple of (PageID, free Space) or something
 
 
     # pageSize and pageClass and schema
@@ -280,6 +282,17 @@ class StorageFile:
       print("Going through update")
       with open(self.filePath, 'br+') as f:
         self.header = FileHeader.fromFile(f)
+        while True:
+          pageIt = 0
+          tempPageBytes = f.read(self.header.pageSize)
+          if tempPageBytes != b'':
+            pId = PageId(self.fileId, pageIt)
+            tempPage = self.pageClass().unpack(pId, tempPageBytes)
+            self.freePages.append((tempPage.pageId, tempPage.header.freeSpace()))
+            pageIt += 1
+          else:
+            break
+
 
       self.file = open(self.filePath, 'ba+')
 
@@ -297,8 +310,7 @@ class StorageFile:
 
     ######################################################################################
     # DESIGN QUESTION: what data structure do you use to keep track of the free pages?
-    self.freePages = [] # Use a tuple of (PageID, free Space) or something
-    
+
 
 
   def initializeHeader(self, **kwargs):
@@ -356,7 +368,9 @@ class StorageFile:
 
   # Reads a page header from disk.
   def readPageHeader(self, pageId):
-    raise NotImplementedError
+    a = 0  # Dummy input argument
+    page = self.readPage(pageId, a)
+    return page.header
 
   # Writes a page header to disk.
   # The page must already exist, that is we cannot extend the file with only a page header.
@@ -367,36 +381,51 @@ class StorageFile:
   # Page operations
 
   def readPage(self, pageId, page):
-    if pageId in self.freePages:
-      self.file.seek(0)
-      bufferStart = self.pageOffset(pageId)
-      bufferEnd = bufferStart + self.header.pageSize
+    print('Reading Page')
 
-      return self.pageClass().unpack(pageId, self.file.read()[bufferStart:bufferEnd])
+    self.file.seek(0)
+    bufferStart = self.pageOffset(pageId)
+    bufferEnd = bufferStart + self.header.pageSize
 
-  # # Read pages in reverse order testing offset and page index.
-  # >>> pageBuffer = bytearray(f.pageSize())
-  # >>> pIn1 = f.readPage(pId1, pageBuffer)
-  # >>> pIn1.pageId == pId1
-  # True
+    return self.pageClass().unpack(pageId, self.file.read()[bufferStart:bufferEnd])
 
 
   def writePage(self, page):
+    print('Writing Page')
     self.file.write(page.pack())
     self.freePages.append((page.pageId, page.header.freeSpace()))
     return
 
+  def updatePage(self, pageId, page):  # Custom function used to update a page when it has been written to
+    bufferStart = self.pageOffset(pageId)
+    self.file.seek(bufferStart)
+    self.file.write(page.pack())
+    self.file.seek(self.size())
+    return
+
+
   # Adds a new page to the file by writing past its end.
   def allocatePage(self):
-    raise NotImplementedError
+    if self.file.read() != b'':
+      print('Not at end of page!')
+    else:
+      pageId = PageId(self.fileId, self.numPages())
+      p = self.defaultPageClass(pageId=pageId, buffer=bytes(self.pageSize()), schema=self.schema())
+      self.writePage(p)
+    return
+
+
 
   # Returns the page id of the first page with available space.
   def availablePage(self):
     if len(self.freePages) > 0:
-      freePages = [a for (a,b) in self.freePages if b > 0]
+      freePages = [a for (a,b) in self.freePages if b > self.schema().size]
+      if len(freePages) == 0:
+        return PageId(self.fileId, self.numPages())
+
       return freePages[0]
     else:
-      return 0
+      return PageId(self.fileId, 0)
 
     # page ID should have fileID + pageIndex (equivalent to page number)
 
@@ -405,7 +434,26 @@ class StorageFile:
 
   # Inserts the given tuple to the first available page.
   def insertTuple(self, tupleData):
-    raise NotImplementedError
+    if len(tupleData) != self.schema().size:
+      print('Tuple that is being inserted does not match schema')
+      return
+    if len(self.freePages) == 0:  # If there are no pages allcoated to begin with
+      self.allocatePage()
+    if self.availablePage().pageIndex == self.numPages():  # If there is no space in any page
+      self.allocatePage()
+    else:
+      pageInsertId = self.availablePage()  # Id of available page
+      tempPage = 0  # some weird argument that isn't used
+      pageToInsert = self.readPage(pageInsertId, tempPage)
+      pageToInsert.insertTuple(tupleData)
+      newFreeSpace = pageToInsert.header.freeSpace()
+      self.updatePage(pageInsertId, pageToInsert)
+      location = [i for i,v in enumerate(self.freePages) if v[0] == pageInsertId]
+
+      self.freePages[location[0]] = (pageInsertId, newFreeSpace)
+
+      return
+
 
   # Removes the tuple by its id, tracking if the page is now free
   def deleteTuple(self, tupleId):
@@ -414,6 +462,14 @@ class StorageFile:
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):
     raise NotImplementedError
+
+  def numTuples(self):
+    tot = 0
+    for tup in self.freePages:
+      ph = self.readPageHeader(tup[0])
+      tot += ph.numTuples()
+    return tot
+
 
 
   # Iterators

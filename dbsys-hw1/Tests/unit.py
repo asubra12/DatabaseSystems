@@ -123,7 +123,7 @@ class Hw1PublicTests(unittest.TestCase):
     return (pId, p)
 
   # Tests:
-  def testFileReadWritePage(self):
+  def testFileReadWritePage(self):  # Works, fucking praise
     # Initialize database internals, and a new page
     (bufp, filem, schema) = self.makeDB()
     filem.removeRelation(schema.name)
@@ -149,7 +149,7 @@ class Hw1PublicTests(unittest.TestCase):
       self.assertEqual(tup1, tup2)
     filem.close()
 
-  def testFileAllocatePage(self):
+  def testFileAllocatePage(self):  # Works
     (bufp, filem, schema) = self.makeDB()
     filem.removeRelation(schema.name)
     filem.createRelation(schema.name, schema)
@@ -161,7 +161,7 @@ class Hw1PublicTests(unittest.TestCase):
       self.assertEqual(f.numPages(), i+1)
     filem.close()
 
-  def testFileAvailablePage(self):
+  def testFileAvailablePage(self):  # Works!
     (bufp, filem, schema) = self.makeDB()
     filem.removeRelation(schema.name)
     filem.createRelation(schema.name, schema)
