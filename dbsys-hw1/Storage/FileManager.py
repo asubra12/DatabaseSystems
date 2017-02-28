@@ -1,4 +1,4 @@
-import io, json, os, os.path, pickle
+import io, json, os, os.path, pickle, importlib
 
 from Catalog.Schema      import DBSchema
 from Catalog.Identifiers import FileId
@@ -12,31 +12,31 @@ class FileManager:
   relation name to a file identifier, and the second mapping a file
   identifier to the storage file object.
 
-  >>> import Storage.BufferPool
-  >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
-  >>> bp = Storage.BufferPool.BufferPool()
-  >>> fm = FileManager(bufferPool=bp)
-  >>> bp.setFileManager(fm)
-
-  # Test addition and removal of relations
-  >>> fm.createRelation(schema.name, schema)
-  >>> list(fm.relations())
-  ['employee']
-
-  >>> (fId, rFile) = fm.relationFile(schema.name)
-
-  >>> fm.detachRelation(schema.name)
-  >>> list(fm.relations())
-  []
-
-  >>> fm.addRelation(schema.name, fId, rFile)
-  >>> list(fm.relations())
-  ['employee']
-
-  # Test FileManager construction on existing directory
-  >>> fm = FileManager(bufferPool=bp)
-  >>> bp.setFileManager(fm)
-  >>> list(fm.relations())
+  import Storage.BufferPool
+  schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
+  bp = Storage.BufferPool.BufferPool()
+  fm = FileManager(bufferPool=bp)
+  bp.setFileManager(fm)
+  #
+  # # Test addition and removal of relations
+  fm.createRelation(schema.name, schema)
+  list(fm.relations())
+  # ['employee']
+  #
+  # >>> (fId, rFile) = fm.relationFile(schema.name)
+  #
+  # >>> fm.detachRelation(schema.name)
+  # >>> list(fm.relations())
+  # []
+  #
+  # >>> fm.addRelation(schema.name, fId, rFile)
+  # >>> list(fm.relations())
+  # ['employee']
+  #
+  # # Test FileManager construction on existing directory
+  # >>> fm = FileManager(bufferPool=bp)
+  # >>> bp.setFileManager(fm)
+  # >>> list(fm.relations())
   ['employee']
   """
 
@@ -128,9 +128,8 @@ class FileManager:
       path = os.path.join(self.datadir, str(self.fileCounter)+'.rel')
       self.fileCounter += 1
       self.relationFiles[relId] = fId
-      self.fileMap[fId] = \
-        self.fileClass(bufferPool=self.bufferPool, \
-                       pageSize=self.pageSize, fileId=fId, filePath=path, mode="create", schema=schema)
+
+      self.fileMap[fId] = self.fileClass(bufferPool=self.bufferPool, pageSize=self.pageSize, fileId=fId, filePath=path, mode="create", schema=schema)
 
       self.checkpoint()
 
@@ -223,6 +222,6 @@ class FileManager:
                  fileCounter=args[2], restore=(args[3], args[4]))
 
 
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+# if __name__ == "__main__":
+#     import doctest
+#     doctest.testmod()
