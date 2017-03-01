@@ -14,13 +14,13 @@ class BufferPool:
 
   Since the buffer pool is a cache, we do not provide any serialization methods.
 
-  >>> schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
-  >>> bp = BufferPool()
-  >>> fm = Storage.FileManager.FileManager(bufferPool=bp)
-  >>> bp.setFileManager(fm)
+  schema = DBSchema('employee', [('id', 'int'), ('age', 'int')])
+  bp = BufferPool()
+  fm = Storage.FileManager.FileManager(bufferPool=bp)
+  bp.setFileManager(fm)
 
   # Check initial buffer pool size
-  >>> len(bp.pool.getbuffer()) == bp.poolSize
+  len(bp.pool.getbuffer()) == bp.poolSize
   True
 
   """
@@ -42,7 +42,10 @@ class BufferPool:
 
     ####################################################################################
     # DESIGN QUESTION: what other data structures do we need to keep in the buffer pool?
-    self.freeList     = None
+    self.freeList = [1] * self.numPages()
+    self.pooledPages = []
+    self.callOrder = {}
+    self.callNum = 0
 
 
   def setFileManager(self, fileMgr):
@@ -54,7 +57,7 @@ class BufferPool:
     return math.floor(self.poolSize / self.pageSize)
 
   def numFreePages(self):
-    raise NotImplementedError
+    return self.numPages() - len(self.freeList)
 
   def size(self):
     return self.poolSize
@@ -69,10 +72,35 @@ class BufferPool:
   # Buffer pool operations
 
   def hasPage(self, pageId):
-    raise NotImplementedError
+    return pageId in [a for (a,b) in self.pooledPages]
   
   def getPage(self, pageId):
-    raise NotImplementedError
+    if self.hasPage(pageId):
+      temp = [(a,b) for (a,b) in self.pooledPages if a == pageId]
+      currTuple = temp[0]
+
+      currPage = self.pool[currTuple[1]:currTuple[1]+self.pageSize]
+
+      self.callOrder[pageId] = self.callNum
+      self.callNum += 1
+
+      returnClass = self.fileMgr.defaultFileClass.defaultPageClass
+
+      pageObject = returnClass.unpack(currPage)
+      return pageObject
+    else:
+      dummyArg = 0
+      currPage = self.fileMgr.readPage(pageId, dummyArg)
+      freeSpot = self.freeList.index(1)
+      start = freeSpot * self.pageSize
+      self.freeList[freeSpot] = 0
+      self.pool[start:start+self.pageSize] = currPage.pack()
+      self.pooledPages.append((pageId, start))
+
+      self.callOrder[pageId] = self.callNum
+      self.callNum += 1
+
+      return currPage
 
   # Removes a page from the page map, returning it to the free 
   # page list without flushing the page to the disk.
