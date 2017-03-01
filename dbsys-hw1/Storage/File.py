@@ -266,7 +266,6 @@ class StorageFile:
 
     # pageSize and pageClass and schema
     if mode =='create':
-      print("Going through create")
       header = self.initializeHeader(**kwargs)
       self.header = header
 
@@ -279,7 +278,6 @@ class StorageFile:
         raise ValueError("Appropriate filePath is needed")
 
     elif mode == 'update':
-      print("Going through update")
       with open(self.filePath, 'br+') as f:
         self.header = FileHeader.fromFile(f)
         while True:
