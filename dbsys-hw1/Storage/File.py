@@ -445,14 +445,14 @@ class StorageFile:
     pageInsertId = self.availablePage()  # Id of available page
     tempPage = 0  # some weird argument that isn't used
     pageToInsert = self.readPage(pageInsertId, tempPage)
-    pageToInsert.insertTuple(tupleData)
+    tid = pageToInsert.insertTuple(tupleData)
     newFreeSpace = pageToInsert.header.freeSpace()
     self.updatePage(pageInsertId, pageToInsert)
     location = [i for i,v in enumerate(self.freePages) if v[0] == pageInsertId]
 
     self.freePages[location[0]] = (pageInsertId, newFreeSpace)
 
-    return
+    return tid
 
 
   # Removes the tuple by its id, tracking if the page is now free
@@ -461,7 +461,15 @@ class StorageFile:
 
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):
-    raise NotImplementedError
+    desiredPageId = tupleId.pageId
+    self.file.seek(self.pageOffset(desiredPageId))
+    pageBuffer = self.file.read(self.header.pageSize)
+    newPage = self.pageClass().unpack(desiredPageId, pageBuffer)
+    newPage.putTuple(tupleId, tupleData)
+
+    self.updatePage(desiredPageId, newPage)
+
+    return
 
   def numTuples(self):
     tot = 0

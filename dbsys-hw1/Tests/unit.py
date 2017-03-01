@@ -206,7 +206,7 @@ class Hw1PublicTests(unittest.TestCase):
     self.assertEqual(f.numTuples(), 0)
     # filem.close()
 
-  def testFileUpdateTuple(self):
+  def testFileUpdateTuple(self):  # Works
     (bufp, filem, schema) = self.makeDB()
     filem.removeRelation(schema.name)
     filem.createRelation(schema.name, schema)
