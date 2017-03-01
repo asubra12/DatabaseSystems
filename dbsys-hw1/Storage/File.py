@@ -455,10 +455,13 @@ class StorageFile:
     if tupleId.pageId.fileId != self.fileId:
       raise ValueError("Wrong file")
 
+    self.file.seek(0)
     bufferStart = self.pageOffset(tupleId.pageId)
     bufferEnd = bufferStart + self.header.pageSize
 
-    self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd]).deleteTuple(tupleId)
+    check = self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd])
+    check.deleteTuple(tupleId)
+    self.updatePage(check.pageId, check)
 
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):
