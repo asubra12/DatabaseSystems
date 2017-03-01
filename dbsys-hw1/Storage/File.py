@@ -441,18 +441,18 @@ class StorageFile:
       self.allocatePage()
     if self.availablePage().pageIndex == self.numPages():  # If there is no space in any page
       self.allocatePage()
-    else:
-      pageInsertId = self.availablePage()  # Id of available page
-      tempPage = 0  # some weird argument that isn't used
-      pageToInsert = self.readPage(pageInsertId, tempPage)
-      pageToInsert.insertTuple(tupleData)
-      newFreeSpace = pageToInsert.header.freeSpace()
-      self.updatePage(pageInsertId, pageToInsert)
-      location = [i for i,v in enumerate(self.freePages) if v[0] == pageInsertId]
 
-      self.freePages[location[0]] = (pageInsertId, newFreeSpace)
+    pageInsertId = self.availablePage()  # Id of available page
+    tempPage = 0  # some weird argument that isn't used
+    pageToInsert = self.readPage(pageInsertId, tempPage)
+    pageToInsert.insertTuple(tupleData)
+    newFreeSpace = pageToInsert.header.freeSpace()
+    self.updatePage(pageInsertId, pageToInsert)
+    location = [i for i,v in enumerate(self.freePages) if v[0] == pageInsertId]
 
-      return
+    self.freePages[location[0]] = (pageInsertId, newFreeSpace)
+
+    return
 
 
   # Removes the tuple by its id, tracking if the page is now free
