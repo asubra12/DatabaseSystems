@@ -381,8 +381,6 @@ class StorageFile:
   # Page operations
 
   def readPage(self, pageId, page):
-    print('Reading Page')
-
     self.file.seek(0)
     bufferStart = self.pageOffset(pageId)
     bufferEnd = bufferStart + self.header.pageSize
@@ -391,7 +389,6 @@ class StorageFile:
 
 
   def writePage(self, page):
-    print('Writing Page')
     self.file.write(page.pack())
     self.freePages.append((page.pageId, page.header.freeSpace()))
     return
@@ -457,7 +454,13 @@ class StorageFile:
 
   # Removes the tuple by its id, tracking if the page is now free
   def deleteTuple(self, tupleId):
-    raise NotImplementedError
+    if tupleId.pageId.fileId != self.fileId:
+      raise ValueError("Wrong file")
+
+    bufferStart = self.pageOffset(tupleId.pageId)
+    bufferEnd = bufferStart + self.header.pageSize
+
+    self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd]).deleteTuple(tupleId)
 
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):
