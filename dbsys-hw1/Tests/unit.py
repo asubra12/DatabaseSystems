@@ -147,7 +147,7 @@ class Hw1PublicTests(unittest.TestCase):
     # to those in the original.
     for (tup1, tup2) in zip(pIn1, p):
       self.assertEqual(tup1, tup2)
-    # filem.close()
+    filem.close()
 
   def testFileAllocatePage(self):  # Works
     (bufp, filem, schema) = self.makeDB()
@@ -159,7 +159,7 @@ class Hw1PublicTests(unittest.TestCase):
     for i in range(10):
       f.allocatePage()
       self.assertEqual(f.numPages(), i+1)
-    # filem.close()
+    filem.close()
 
   def testFileAvailablePage(self):  # Works!
     (bufp, filem, schema) = self.makeDB()
@@ -179,7 +179,7 @@ class Hw1PublicTests(unittest.TestCase):
     for i in range(2000):
       f.insertTuple(schema.pack(self.makeEmployee(i)))
     self.assertNotEqual(f.availablePage().pageIndex, initialPage)
-    # filem.close()
+    filem.close()
 
   def testFileInsertTuple(self): # Works
     (bufp, filem, schema) = self.makeDB()
@@ -190,7 +190,7 @@ class Hw1PublicTests(unittest.TestCase):
     for i in range(1000):
       f.insertTuple(schema.pack(self.makeEmployee(i)))
     self.assertEqual(f.numTuples(), 1000)
-    # filem.close()
+    filem.close()
 
   def testFileDeleteTuple(self):
     (bufp, filem, schema) = self.makeDB()
@@ -204,7 +204,7 @@ class Hw1PublicTests(unittest.TestCase):
     for tid in tids:
       f.deleteTuple(tid)
     self.assertEqual(f.numTuples(), 0)
-    # filem.close()
+    filem.close()
 
   def testFileUpdateTuple(self):  # Works
     (bufp, filem, schema) = self.makeDB()
@@ -216,7 +216,7 @@ class Hw1PublicTests(unittest.TestCase):
     f.updateTuple(tid, schema.pack(self.makeEmployee(10)))
     for tup in f.tuples():
       self.assertEqual(schema.unpack(tup).id, 10)
-    # filem.close()
+    filem.close()
 
   ###########################################################
   # BufferPool Class Tests
