@@ -18,6 +18,8 @@ class BufferPool:
   bp = BufferPool()
   fm = Storage.FileManager.FileManager(bufferPool=bp)
   bp.setFileManager(fm)
+  fm.createRelation(schema.name, schema)
+  (fId, f) = fm.relationFile(schema.name)
 
   # Check initial buffer pool size
   len(bp.pool.getbuffer()) == bp.poolSize
@@ -38,7 +40,7 @@ class BufferPool:
   def __init__(self, **kwargs):
     self.pageSize     = kwargs.get("pageSize", io.DEFAULT_BUFFER_SIZE)
     self.poolSize     = kwargs.get("poolSize", BufferPool.defaultPoolSize)
-    self.pool         = io.BytesIO(b'\x00' * self.poolSize)
+    self.pool         = io.BytesIO(b'\x00' * self.poolSize).getbuffer()
 
     ####################################################################################
     # DESIGN QUESTION: what other data structures do we need to keep in the buffer pool?
@@ -77,24 +79,25 @@ class BufferPool:
   def getPage(self, pageId):
     if self.hasPage(pageId):
       temp = [(a,b) for (a,b) in self.pooledPages if a == pageId]
-      currTuple = temp[0]
+      currId = temp[0]
 
-      currPage = self.pool[currTuple[1]:currTuple[1]+self.pageSize]
+      currPage = self.pool[currId[1]:currId[1]+self.pageSize]
 
       self.callOrder[pageId] = self.callNum
       self.callNum += 1
 
       returnClass = self.fileMgr.defaultFileClass.defaultPageClass
 
-      pageObject = returnClass.unpack(currPage)
+      pageObject = returnClass.unpack(pageId, currPage)
       return pageObject
+
     else:
       dummyArg = 0
       currPage = self.fileMgr.readPage(pageId, dummyArg)
       freeSpot = self.freeList.index(1)
       start = freeSpot * self.pageSize
       self.freeList[freeSpot] = 0
-      self.pool[start:start+self.pageSize] = currPage.pack()
+      self.pool[start:(start+self.pageSize)] = currPage.pack()
       self.pooledPages.append((pageId, start))
 
       self.callOrder[pageId] = self.callNum
@@ -102,10 +105,46 @@ class BufferPool:
 
       return currPage
 
+  def writePage(self, pageId, page):
+    if self.hasPage(pageId):
+      bufferStart = [b for (a,b) in self.pooledPages if a == pageId]
+      bufferStart = bufferStart[0]
+      bufferEnd = bufferStart + self.pageSize
+      self.pool[bufferStart:bufferEnd] = page.pack()
+      return
+    else:
+      print('That page Id is not in the bufferPool!')
+      return
+
+  # def writeNewPage(self, pageId, page):
+  #
+  #   freeSpot = self.freeList.index(1)
+  #   start = freeSpot*self.pageSize
+  #   end = start + self.pageSize
+  #
+  #   self.freeList[freeSpot] = 0
+  #   self.pool[start:end] = page.pack()
+  #   self.pooledPages.append((pageId, start))
+  #
+  #   self.callOrder[pageId] = self.callNum
+  #   self.callNum += 1
+  #
+  #   return
+
+
   # Removes a page from the page map, returning it to the free 
   # page list without flushing the page to the disk.
   def discardPage(self, pageId):
-    raise NotImplementedError
+    if self.hasPage(pageId):
+      pooledPageTuple = [(a,b) for (a,b) in self.pooledPages if a == pageId][0]
+      index = self.pooledPages.index(pooledPageTuple)
+      self.freeList[index] = 0
+      self.pooledPages.remove(pooledPageTuple)
+      return
+    else:
+      print('That pageId is not in the bufferPool!')
+
+
 
   def flushPage(self, pageId):
     raise NotImplementedError
@@ -114,7 +153,8 @@ class BufferPool:
   # We implement LRU through the use of an OrderedDict, and by moving pages
   # to the end of the ordering every time it is accessed through getPage()
   def evictPage(self):
-    raise NotImplementedError
+    pageIdEvict = min(self.callOrder, key=self.callOrder.get)
+    self.discardPage(pageIdEvict)
 
   # Flushes all dirty pages
   def clear(self):

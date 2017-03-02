@@ -510,6 +510,6 @@ class SlottedPage:
     return cls(buffer=new_buffer.tobytes(), pageId=pageId, header=header)
 
 '''
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

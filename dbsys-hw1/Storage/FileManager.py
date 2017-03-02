@@ -222,6 +222,6 @@ class FileManager:
                  fileCounter=args[2], restore=(args[3], args[4]))
 
 
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

@@ -407,7 +407,7 @@ class StorageFile:
       pageId = PageId(self.fileId, self.numPages())
       p = self.defaultPageClass(pageId=pageId, buffer=bytes(self.pageSize()), schema=self.schema())
       self.writePage(p)
-    return
+    return pageId
 
 
 
@@ -432,20 +432,30 @@ class StorageFile:
     if len(tupleData) != self.schema().size:
       print('Tuple that is being inserted does not match schema')
       return
-    if len(self.freePages) == 0:  # If there are no pages allcoated to begin with
-      self.allocatePage()
-    if self.availablePage().pageIndex == self.numPages():  # If there is no space in any page
-      self.allocatePage()
+    if len(self.freePages) == 0:  # If there are no pages allocated to begin with
+      pId = self.allocatePage()
+      pageToInsert = self.bufferPool.getPage(pId)
+    elif self.availablePage().pageIndex == self.numPages():  # If there is no space in any page
+      pId = self.allocatePage()
+      pageToInsert=self.bufferPool.getPage(pId)
+    else:
+      pId = self.availablePage()
+      pageToInsert = self.bufferPool.getPage(pId)
 
-    pageInsertId = self.availablePage()  # Id of available page
-    tempPage = 0  # some weird argument that isn't used
-    pageToInsert = self.readPage(pageInsertId, tempPage)
+
+    # pageInsertId = self.availablePage()  # Id of available page
+
+    # tempPage = 0  # some weird argument that isn't used
+    # pageToInsert = self.readPage(pageInsertId, tempPage)
     tid = pageToInsert.insertTuple(tupleData)
+    pageToInsert.header.setDirty(True)
     newFreeSpace = pageToInsert.header.freeSpace()
-    self.updatePage(pageInsertId, pageToInsert)
-    location = [i for i,v in enumerate(self.freePages) if v[0] == pageInsertId]
+    self.updatePage(pId, pageToInsert)  # This can be removed?
+    location = [i for i,v in enumerate(self.freePages) if v[0] == pId]
 
-    self.freePages[location[0]] = (pageInsertId, newFreeSpace)
+    self.freePages[location[0]] = (pId, newFreeSpace)
+
+    self.bufferPool.writePage(pId, pageToInsert)
 
     return tid
 
@@ -455,23 +465,30 @@ class StorageFile:
     if tupleId.pageId.fileId != self.fileId:
       raise ValueError("Wrong file")
 
+
+
+
     self.file.seek(0)
     bufferStart = self.pageOffset(tupleId.pageId)
     bufferEnd = bufferStart + self.header.pageSize
 
     check = self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd])
     check.deleteTuple(tupleId)
+    check.header.setDirty(True)
+
     self.updatePage(check.pageId, check)
 
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):
     desiredPageId = tupleId.pageId
-    self.file.seek(self.pageOffset(desiredPageId))
-    pageBuffer = self.file.read(self.header.pageSize)
-    newPage = self.pageClass().unpack(desiredPageId, pageBuffer)
+    newPage = self.bufferPool.getPage(desiredPageId)
+    # self.file.seek(self.pageOffset(desiredPageId))
+    # pageBuffer = self.file.read(self.header.pageSize)
+    # newPage = self.pageClass().unpack(desiredPageId, pageBuffer)
     newPage.putTuple(tupleId, tupleData)
 
     self.updatePage(desiredPageId, newPage)
+    self.bufferPool.writePage(desiredPageId, newPage)
 
     return
 
@@ -586,6 +603,6 @@ class StorageFile:
         self.tupleIterator = iter(self.currentPage)        
 
 
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
