@@ -361,7 +361,6 @@ class StorageFile:
   def validPageId(self, pageId):
     return pageId.fileId == self.fileId and pageId.pageIndex < self.numPages()
 
-
   # Page header operations
 
   # Reads a page header from disk.
@@ -373,22 +372,37 @@ class StorageFile:
   # Writes a page header to disk.
   # The page must already exist, that is we cannot extend the file with only a page header.
   def writePageHeader(self, page):
-    raise NotImplementedError
+    if self.validPageId(page.pageId):
+      bufferStart = self.pageOffset(page.pageId)
+      bufferEnd = bufferStart + self.header.size
+
+      self.file.seek(bufferStart)
+      self.file.write(page.header.pack())
+      self.file.seek(self.size())
+
+    return
 
 
   # Page operations
 
   def readPage(self, pageId, page):
-    self.file.seek(0)
-    bufferStart = self.pageOffset(pageId)
-    bufferEnd = bufferStart + self.header.pageSize
+    # self.file.seek(0)
+    self.file.seek(self.pageOffset(pageId))
+    packedPage = self.file.read(self.pageSize())
+    self.file.read(self.size())
+    # bufferStart = self.pageOffset(pageId)
+    # bufferEnd = bufferStart + self.header.pageSize
 
-    return self.pageClass().unpack(pageId, self.file.read()[bufferStart:bufferEnd])
+    # return self.pageClass().unpack(pageId, self.file.read()[bufferStart:bufferEnd])
+    return self.pageClass().unpack(pageId, packedPage)
 
 
   def writePage(self, page):
-    self.file.write(page.pack())
-    self.freePages.append((page.pageId, page.header.freeSpace()))
+    if not self.validPageId(page.pageId):
+      self.file.write(page.pack())
+      self.freePages.append((page.pageId, page.header.freeSpace()))
+    else:
+      self.updatePage(page.pageId, page)
     return
 
   def updatePage(self, pageId, page):  # Custom function used to update a page when it has been written to
@@ -403,6 +417,7 @@ class StorageFile:
   def allocatePage(self):
     if self.file.read() != b'':
       print('Not at end of page!')
+      return
     else:
       pageId = PageId(self.fileId, self.numPages())
       p = self.defaultPageClass(pageId=pageId, buffer=bytes(self.pageSize()), schema=self.schema())
@@ -465,18 +480,30 @@ class StorageFile:
     if tupleId.pageId.fileId != self.fileId:
       raise ValueError("Wrong file")
 
+    desiredPageId = tupleId.pageId
+    pageToDelete = self.bufferPool.getPage(desiredPageId)
+
+    pageToDelete.deleteTuple(tupleId)
+    pageToDelete.header.setDirty(True)
+
+    newFreeSpace = pageToDelete.header.freeSpace()
+    location = [i for i,v in enumerate(self.freePages) if v[0] == desiredPageId]
+    self.freePages[location[0]] = (desiredPageId, newFreeSpace)
+
+    self.updatePage(pageToDelete.pageId, pageToDelete)
+    self.bufferPool.writePage(desiredPageId, pageToDelete)
+
+    return
 
 
+    # self.file.seek(0)
+    # bufferStart = self.pageOffset(tupleId.pageId)
+    # bufferEnd = bufferStart + self.header.pageSize
+    #
+    # check = self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd])
+    # check.deleteTuple(tupleId)
+    # check.header.setDirty(True)
 
-    self.file.seek(0)
-    bufferStart = self.pageOffset(tupleId.pageId)
-    bufferEnd = bufferStart + self.header.pageSize
-
-    check = self.pageClass().unpack(tupleId.pageId, self.file.read()[bufferStart:bufferEnd])
-    check.deleteTuple(tupleId)
-    check.header.setDirty(True)
-
-    self.updatePage(check.pageId, check)
 
   # Updates the tuple by id
   def updateTuple(self, tupleId, tupleData):

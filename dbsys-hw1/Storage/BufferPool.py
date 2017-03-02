@@ -160,7 +160,8 @@ class BufferPool:
     currPageObj = currPageClass.unpack(currId, currPageBuffer)
 
     if currPageObj.header.isDirty():
-      self.fileMgr.writePage(currPageBuffer)
+      currPageObj.header.setDirty(False)
+      self.fileMgr.writePage(currPageObj)
 
     return
 
