@@ -3,6 +3,7 @@ import itertools
 from Catalog.Schema import DBSchema
 from Query.Operator import Operator
 
+
 class Join(Operator):
   def __init__(self, lhsPlan, rhsPlan, **kwargs):
     super().__init__(**kwargs)
@@ -21,6 +22,7 @@ class Join(Operator):
     self.rhsKeySchema   = kwargs.get("rhsKeySchema", None)
     self.lhsHashFn      = kwargs.get("lhsHashFn", None)
     self.rhsHashFn      = kwargs.get("rhsHashFn", None)
+    self.blockIds       = []
 
     self.validateJoin()
     self.initializeSchema()
@@ -30,6 +32,7 @@ class Join(Operator):
   def validateJoin(self):
     # Valid join methods: "nested-loops", "block-nested-loops", "indexed", "hash"
     if self.joinMethod not in ["nested-loops", "block-nested-loops", "indexed", "hash"]:
+
       raise ValueError("Invalid join method in join operator")
 
     # Check all fields are valid.
@@ -94,7 +97,8 @@ class Join(Operator):
 
   # Iterator abstraction for join operator.
   def __iter__(self):
-    raise NotImplementedError
+    self.initializeOutput()
+    self.processAllPages()
 
   def __next__(self):
     raise NotImplementedError
@@ -162,9 +166,71 @@ class Join(Operator):
   def accessPageBlock(self, bufPool, pageIterator):
     raise NotImplementedError
 
-  def blockNestedLoops(self):
-    raise NotImplementedError
+  def blockJoin(self):
+    for lhsPageId in self.blockIds:
+      lhsPage = self.storage.bufferPool.getPage(lhsPageId, pinned=True)
+      for lTuple in lhsPage:
+        joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
 
+        for (rPageId, rhsPage) in self.rhsPlan:
+          self.storage.bufferPool.pinPage(rPageId)
+
+          for rTuple in rhsPage:
+            joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
+
+            if eval(self.joinExpr, globals(), joinExprEnv):
+              outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
+              self.emitOutputTuple(self.joinSchema.pack(outputTuple))
+
+          self.storage.bufferPool.unpinPage(rPageId)
+
+          if self.outputPages:
+            self.outputPages = [self.outputPages[-1]]
+
+    '''
+        for (lPageId, lhsPage) in iter(self.lhsPlan):
+      for lTuple in lhsPage:
+        # Load the lhs once per inner loop.
+        joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
+
+        for (rPageId, rhsPage) in iter(self.rhsPlan):
+          for rTuple in rhsPage:
+            # Load the RHS tuple fields.
+            joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
+
+            # Evaluate the join predicate, and output if we have a match.
+            if eval(self.joinExpr, globals(), joinExprEnv):
+              outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
+              self.emitOutputTuple(self.joinSchema.pack(outputTuple))
+
+        # No need to track anything but the last output page when in batch mode.
+        if self.outputPages:
+          self.outputPages = [self.outputPages[-1]]
+
+    # Return an iterator to the output relation
+    return self.storage.pages(self.relationId())'''
+
+
+  def blockNestedLoops(self):
+    bp = self.storage.bufferPool
+    freePages = bp.numFreePages() + 1  # Save one free page for the page of rhs that we read in
+    # Do we need to worry about the number of output pages that we create?
+    for (lPageId, lhsPage) in iter(self.lhsPlan):
+      bp.getPage(lPageId, pinned=True)
+      self.blockIds.append(lPageId)
+
+      if len(self.blockIds) == freePages:  # We've used all the pages available in the bufferPool
+        self.blockJoin()
+        for pId in self.blockIds:
+          bp.unpinPage(pId)
+        self.blockIds = []
+
+    self.blockJoin()  # If we are able to add all the pages we want to our block
+    for pId in self.blockIds:
+      bp.unpinPage(pId)
+    self.blockIds = []
+
+    return self.storage.pages(self.relationId())
 
   ##################################
   #
