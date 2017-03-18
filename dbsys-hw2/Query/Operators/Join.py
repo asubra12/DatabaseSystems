@@ -98,7 +98,7 @@ class Join(Operator):
   # Iterator abstraction for join operator.
   def __iter__(self):
     self.initializeOutput()
-    self.processAllPages()
+    return iter(self.processAllPages())
 
   def __next__(self):
     raise NotImplementedError
