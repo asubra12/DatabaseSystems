@@ -26,6 +26,7 @@ class Hw2PublicTests(unittest.TestCase):
     for tup in [empSchema.pack(empSchema.instantiate(i, 2*i+20, i % 2)) for i in range(self.numEmployees)]:
        self.db.insertTuple(empSchema.name, tup)
 
+
   def tearDown(self):
     self.db.removeRelation('employee')
     self.db.close()

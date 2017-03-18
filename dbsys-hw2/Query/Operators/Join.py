@@ -172,8 +172,9 @@ class Join(Operator):
       for lTuple in lhsPage:
         joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
 
-        for (rPageId, rhsPage) in self.rhsPlan:
-          self.storage.bufferPool.pinPage(rPageId)
+        for (rPageId, _) in self.rhsPlan:
+          rhsPage = self.storage.bufferPool.getPage(rPageId, pinned=True)
+          # self.storage.bufferPool.pinPage(rPageId)
 
           for rTuple in rhsPage:
             joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
@@ -186,29 +187,6 @@ class Join(Operator):
 
           if self.outputPages:
             self.outputPages = [self.outputPages[-1]]
-
-    '''
-        for (lPageId, lhsPage) in iter(self.lhsPlan):
-      for lTuple in lhsPage:
-        # Load the lhs once per inner loop.
-        joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
-
-        for (rPageId, rhsPage) in iter(self.rhsPlan):
-          for rTuple in rhsPage:
-            # Load the RHS tuple fields.
-            joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
-
-            # Evaluate the join predicate, and output if we have a match.
-            if eval(self.joinExpr, globals(), joinExprEnv):
-              outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
-              self.emitOutputTuple(self.joinSchema.pack(outputTuple))
-
-        # No need to track anything but the last output page when in batch mode.
-        if self.outputPages:
-          self.outputPages = [self.outputPages[-1]]
-
-    # Return an iterator to the output relation
-    return self.storage.pages(self.relationId())'''
 
 
   def blockNestedLoops(self):
@@ -245,8 +223,75 @@ class Join(Operator):
   # Hash join implementation.
   #
   def hashJoin(self):
-    raise NotImplementedError
+    bp = self.storage.bufferPool
 
+    lPartitions = self.partitionPlan('L', self.lhsPlan, self.lhsHashFn, self.lhsSchema, self.lhsKeySchema)
+    rPartitions = self.partitionPlan('R', self.rhsPlan, self.rhsHashFn, self.rhsSchema, self.rhsKeySchema)
+
+    for lKey in lPartitions:  # Go through all the keys of our outer partition
+      lRelId = lPartitions[lKey]
+      lFile = self.storage.fileMgr.relationFile(lRelId)[1]
+
+      if lKey in rPartitions:  # Check if the key is in our inner partition. No need for 'eval' now
+        rRelId = rPartitions[lKey]
+        rFile = self.storage.fileMgr.relationFile(rRelId)[1]  # Get the file of all tuples w the same hash
+
+        lPages = lFile.pages(pinned=True)
+        rPages = rFile.pages(pinned=True)
+
+        for (lPageId, lPage) in lPages:
+          for lTuple in lPage:
+            joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
+
+            for (rPageId, rPage) in rPages:
+              for rTuple in rPage:
+                joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
+
+                outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
+                self.emitOutputTuple(self.joinSchema.pack(outputTuple))
+
+              bp.unpinPage(rPageId)
+
+          bp.unpinPage(lPageId)
+
+    for key in lPartitions:
+      self.storage.removeRelation(lPartitions[key])
+    for key in rPartitions:
+      self.storage.removeRelation(rPartitions[key])
+
+    if self.outputPages:
+      self.outputPages = [self.outputPages[-1]]
+
+    return self.storage.pages(self.relationId())
+
+    # Partition both rhs and lhs into partition files
+    # Read one partition file at a time
+    # Block join each partition file
+
+  def partitionPlan(self, planSide, plan, hashFn, planSchema, keySchema):
+    partitionFiles = {}
+
+    for (pageId, page) in plan:
+      for tuple in page:
+        joinExprEnv = self.loadSchema(planSchema, tuple)
+        bucket = eval(hashFn, globals(), joinExprEnv)
+
+        if bucket not in partitionFiles:
+          relId = self.relationId() + '_' + planSide + '_' + str(bucket)
+          if self.storage.hasRelation(relId):
+            self.storage.removeRelation(relId)
+          self.storage.createRelation(relId, planSchema)
+
+          file = self.storage.fileMgr.relationFile(relId)[1]
+
+          file.insertTuple(tuple)
+          partitionFiles[bucket] = relId
+        else:
+          relId = partitionFiles[bucket]
+          file = self.storage.fileMgr.relationFile(relId)[1]
+          file.insertTuple(tuple)
+
+    return partitionFiles
   # Plan and statistics information
 
   # Returns a single line description of the operator.
