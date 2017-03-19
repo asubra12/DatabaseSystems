@@ -303,7 +303,7 @@ def query3bBNL_test(db, printOutput):
               rhsSchema=db.relationSchema('customer'),
               method='block-nested-loops',
               expr='O_CUSTKEY == C_CUSTKEY') \
-        .join(db.query().fromTable('part'),
+        .join(db.query().fromTable('nation'),
               rhsSchema=db.relationSchema('nation'),
               method='block-nested-loops',
               expr='C_NATIONKEY == N_NATIONKEY') \
