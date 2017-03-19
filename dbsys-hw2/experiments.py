@@ -203,6 +203,46 @@ def query2Hash_test(db, printOutput):
     print('Time', duration)
     return
 
+def query3aBNL_test(db, printOutput):
+    query3 = db.query().fromTable('nation') \
+        .join(db.query().fromTable('customer'),
+              rhsSchema=db.relationSchema('customer'),
+              method='block-nested-loops',
+              expr='N_NATIONKEY == C_NATIONKEY') \
+        .join(db.query().fromTable('orders'),
+              rhsSchema=db.relationSchema('orders'),
+              method='block-nested-loops',
+              expr='C_CUSTKEY == O_CUSTKEY') \
+        .join(db.query().fromTable('lineitem'),
+              rhsSchema=db.relationSchema('lineitem'),
+              method='block-nested-loops',
+              expr='O_ORDERKEY == L_ORDERKEY') \
+        .join(db.query().fromTable('part'),
+              rhsSchema=db.relationSchema('part'),
+              method='block-nested-loops',
+              expr='L_PARTKEY == P_PARTKEY') \
+        .groupBy(groupSchema=DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
+                 aggSchema=DBSchema('SUM', [('SUM', 'double')]),
+                 groupExpr=(lambda e: (e.N_NAME, e.P_NAME)),
+                 aggExprs=[(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .groupBy(groupSchema=DBSchema('SECOND', [('N_NAME')]),
+                 aggSchema=DBSchema('MAX', [('MAX', 'double')]),
+                 groupExpr=(lambda e: e.N_NAME),
+                 aggExprs=[(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'double')}) \
+        .finalize()
+
+    start = time.time()
+    processedQuery = [query3.schema().unpack(tup) for page in db.processQuery(query3) for tup in page[1]]
+    end = time.time()
+    duration = end - start
+    print('Query: Query 3, BNL')
+    if printOutput:
+        print('Results: ', processedQuery)
+    print('Time', duration)
+    return
 
     # databases = ['HW2_0.001.db', 'HW2_0.01.db']
 # print(sqlite_tests(databases[0]))

@@ -96,14 +96,14 @@ query1 = db.query().fromTable('nation')\
           method='block-nested-loops',
           expr='L_PARTKEY == P_PARTKEY')\
     .groupBy(groupSchema = DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
-             aggSchema = DBSchema('SUM', [('SUM', 'int')]),
+             aggSchema = DBSchema('SUM', [('SUM', 'double')]),
              groupExpr = (lambda e: (e.N_NAME, e.P_NAME)),
              aggExprs = [(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
              groupHashFn = (lambda gbVal: hash(gbVal[0]) % 111))\
     .groupBy(groupSchema = DBSchema('SECOND', [('N_NAME')]),
-             aggSchema = DBSchema('MAX', [('MAX', 'int')]),
+             aggSchema = DBSchema('MAX', [('MAX', 'double')]),
              groupExpr = (lambda e: e.N_NAME),
              aggExprs = [(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
              groupHashFn = (lambda gbVal: hash(gbVal[0]) % 111))\
-    .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'int')})\
+    .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'double')})\
     .finalize()
