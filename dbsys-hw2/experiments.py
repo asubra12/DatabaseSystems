@@ -9,8 +9,7 @@ import unittest
 
 import warnings
 
-def sqlite_tests():
-    databases = ['HW2_0.001.db', 'HW2_0.01.db']
+def sqlite_tests(db):
 
     query1 = ''' select p.p_name, s.s_name
     from part p, supplier s, partsupp ps
@@ -63,16 +62,19 @@ def sqlite_tests():
 
     results = {}
 
-    for db in databases:
-        results[db] = []
-        conn = sqlite3.connect(db)
-        c = conn.cursor()
+    results[db] = []
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
 
-        for query in queries:
-            start = time.time()
-            c.execute(query)
-            end = time.time()
-            duration = end - start
-            results[db].append(query, duration)
+    for query in queries:
+        start = time.time()
+        c.execute(query)
+        end = time.time()
+        duration = end - start
+        results[db].append(duration)
 
     return results
+
+databases = ['HW2_0.001.db', 'HW2_0.01.db']
+print(sqlite_tests(databases[0]))
+print(sqlite_tests(databases[1]))
