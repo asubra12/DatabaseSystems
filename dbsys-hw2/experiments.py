@@ -9,7 +9,7 @@ import unittest
 
 import warnings
 
-def sqlite_tests(db):
+def sqlite_tests(db, printOutput):
 
     query1 = ''' select p.p_name, s.s_name
     from part p, supplier s, partsupp ps
@@ -59,6 +59,7 @@ def sqlite_tests(db):
     '''
 
     queries = [query1, query2, query3a, query3b]
+    names = ['query1', 'query2', 'query3a', 'query3b']
 
     results = {}
 
@@ -66,15 +67,57 @@ def sqlite_tests(db):
     conn = sqlite3.connect(db)
     c = conn.cursor()
 
-    for query in queries:
+    for i in range(len(queries)):
         start = time.time()
-        c.execute(query)
+        processedQuery = c.execute(queries[i])
         end = time.time()
         duration = end - start
-        results[db].append(duration)
+        print('Database: ', db)
+        print('Query: ', names[i])
+        if printOutput:
+            for row in processedQuery:
+                print(row)
+        print('Time: ', duration)
 
-    return results
+    return
 
-databases = ['HW2_0.001.db', 'HW2_0.01.db']
-print(sqlite_tests(databases[0]))
-print(sqlite_tests(databases[1]))
+def setup():
+    db = Database.Database()
+    return db
+
+def query1BNL_test(db):
+    query1 = db.query().fromTable('part') \
+        .join(db.query() \
+              .fromTable('partsupp').where('PS_AVAILQTY == 1'),
+              rhsSchema=db.relationSchema('partsupp'),
+              method='block-nested-loops',
+              expr='P_PARTKEY == PS_PARTKEY') \
+        .join(db.query().fromTable('supplier'),
+              rhsSchema=db.relationSchema('supplier'),
+              method='block-nested-loops',
+              expr='PS_SUPPKEY == S_SUPPKEY') \
+        .union(
+        db.query().fromTable('part') \
+            .join(db.query().fromTable('partsupp').where('PS_SUPPLYCOST < 5'),
+                  rhsSchema=db.relationSchema('partsupp'),
+                  method='block-nested-loops',
+                  expr='P_PARTKEY == PS_PARTKEY') \
+            .join(db.query().fromTable('supplier'),
+                  rhsSchema=db.relationSchema('supplier'),
+                  method='block-nested-loops',
+                  expr='PS_SUPPKEY == S_SUPPKEY')) \
+        .select({'P_NAME': ('P_NAME', 'char(55)'), 'S_NAME': ('S_NAME', 'char(25)')}) \
+        .finalize()
+
+    start = time.time()
+    processedQuery=db.getResults(query1)
+    end = time.time()
+    duration = start-end
+    print('Query: Query 1, Block Nested Loops')
+    print('Results: ', processedQuery)
+    print('Time', duration)
+    return
+
+# databases = ['HW2_0.001.db', 'HW2_0.01.db']
+# print(sqlite_tests(databases[0]))
+# print(sqlite_tests(databases[1]))
