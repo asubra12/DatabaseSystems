@@ -47,10 +47,10 @@ def sqlite_tests(db, printOutput):
     query3b = '''with temp as (
        select n.n_name as nation, p.p_name as part, sum(l.l_quantity) as num
        from customer c, nation n, orders o, lineitem l, part p
-       where c.c_nationkey = n.n_nationkey
-         and o.o_orderkey = l.l_orderkey
-         and c.c_custkey = o.o_custkey
-         and l.l_partkey = p.p_partkey
+       where p.p_partkey = l.l_partkey
+         and l.l_orderkey = o.o_orderkey
+         and o.o_custkey = c.c_custkey
+         and c.c_nationkey = n.n_nationkey
        group by n.n_name, p.p_name
     )
     select nation, max(num)
