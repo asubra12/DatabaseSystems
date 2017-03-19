@@ -69,7 +69,6 @@ query1 = db.query().fromTable('part')\
           method='hash',
           lhsHashFn = 'hash(P_PARTKEY) % 111', lhsKeySchema = DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]),
           rhsHashFn = 'hash(L_PARTKEY) % 111', rhsKeySchema = DBSchema('L_PARTKEY', [('L_PARTKEY', 'int')]))\
-          expr = 'P_PARTKEY == L_PARTKEY')\
     .groupBy(groupSchema = DBSchema('P_NAME', [('P_NAME', 'char(55)')],
                                    aggSchema = DBSchema('COUNT', [('COUNT', 'int')]),
                                    groupExpr(lambda e: e.P_NAME),
@@ -96,11 +95,46 @@ query1 = db.query().fromTable('nation')\
           method='block-nested-loops',
           expr='L_PARTKEY == P_PARTKEY')\
     .groupBy(groupSchema = DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
-             aggSchema = DBSchema('SUM', [('SUM', 'double')]),
+             aggSchema = DBSchema('SUM', [('SUM', 'int')]),
              groupExpr = (lambda e: (e.N_NAME, e.P_NAME)),
              aggExprs = [(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
              groupHashFn = (lambda gbVal: hash(gbVal[0]) % 111))\
     .groupBy(groupSchema = DBSchema('SECOND', [('N_NAME')]),
+             aggSchema = DBSchema('MAX', [('MAX', 'int')]),
+             groupExpr = (lambda e: e.N_NAME),
+             aggExprs = [(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
+             groupHashFn = (lambda gbVal: hash(gbVal[0]) % 111))\
+    .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'int')})\
+    .finalize()
+
+# Query 3 - Hash Join
+query1 = db.query().fromTable('nation')\
+    .join(db.query().fromTable('customer'),
+          rhsSchema = db.relationSchema('customer'),
+          method='hash',
+          lhsHashFn = 'hash(N_NATIONKEY) % 111', lhsKeySchema = DBSchema('N_NATIONKEY', [('N_NATIONKEY', 'int')]),
+          rhsHashFn = 'hash(C_NATIONKEY) % 111', rhsKeySchema = DBSchema('C_NATIONKEY', [('C_NATIONKEY', 'int')]))\
+    .join(db.query().fromTable('orders'),
+          rhsSchema = db.relationSchema('orders'),
+          method='hash',
+          lhsHashFn='hash(C_CUSTKEY) % 111', lhsKeySchema=DBSchema('C_CUSTKEY', [('C_CUSTKEY', 'int')]),
+          rhsHashFn='hash(O_CUSTKEY) % 111', rhsKeySchema=DBSchema('O_CUSTKEY', [('O_CUSTKEY', 'int')]))\
+    .join(db.query().fromTable('lineitem'),
+          rhsSchema=db.relationSchema('lineitem'),
+          method='hash',
+          lhsHashFn='hash(C_CUSTKEY) % 111', lhsKeySchema=DBSchema('O_ORDERKEY', [('O_ORDERKEY', 'int')]),
+          rhsHashFn='hash(O_CUSTKEY) % 111', rhsKeySchema=DBSchema('L_ORDERKEY', [('L_ORDERKEY', 'int')]))\
+    .join(db.query().fromTable('part'),
+          rhsSchema=db.relationSchema('part'),
+          method='hash',
+          lhsHashFn='hash(L_PARTKEY) % 111', lhsKeySchema=DBSchema('L_PARTKEY', [('L_PARTKEY', 'int')]),
+          rhsHashFn='hash(P_PARTKEY) % 111', rhsKeySchema=DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]))\
+    .groupBy(groupSchema = DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
+             aggSchema = DBSchema('SUM', [('SUM', 'double')]),
+             groupExpr = (lambda e: (e.N_NAME, e.P_NAME)),
+             aggExprs = [(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
+             groupHashFn = (lambda gbVal: hash(gbVal[0]) % 111))\
+    .groupBy(groupSchema = DBSchema('SECOND', [('N_NAME', 'char(25)')]),
              aggSchema = DBSchema('MAX', [('MAX', 'double')]),
              groupExpr = (lambda e: e.N_NAME),
              aggExprs = [(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
