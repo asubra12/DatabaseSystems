@@ -158,7 +158,7 @@ def query1Hash_test(db, printOutput):
 
 def query2BNL_test(db, printOutput):
     query2 = db.query().fromTable('part') \
-        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG = \'R\''),
+        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG == \'R\''),
               rhsSchema=db.relationSchema('lineitem'),
               method='block-nested-loops',
               expr='P_PARTKEY == L_PARTKEY') \
@@ -181,7 +181,7 @@ def query2BNL_test(db, printOutput):
 
 def query2Hash_test(db, printOutput):
     query2 = db.query().fromTable('part') \
-        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG = \'R\''),
+        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG == \'R\''),
               rhsSchema=db.relationSchema('lineitem'),
               method='hash',
               lhsHashFn='hash(P_PARTKEY) % 111', lhsKeySchema=DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]),
