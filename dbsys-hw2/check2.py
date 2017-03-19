@@ -24,8 +24,7 @@ query1 = db.query().fromTable('part')\
 
 # Query 1 - Hash Join
 query1 = db.query().fromTable('part')\
-    .join(db.query()\
-          .fromTable('partsupp').where('PS_AVAILQTY == 1'),
+    .join(db.query().fromTable('partsupp').where('PS_AVAILQTY == 1'),
           rhsSchema = db.relationSchema('partsupp'),
           method = 'hash',
           lhsHashFn = 'hash(P_PARTKEY) % 111', lhsKeySchema = DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]),
@@ -35,7 +34,8 @@ query1 = db.query().fromTable('part')\
           method = 'hash',
           lhsHashFn = 'hash(PS_SUPPKEY) % 111', lhsKeySchema = DBSchema('PS_SUPPKEY', [('PS_SUPPKEY', 'int')]),
           rhsHashFn = 'hash(S_SUPPKEY) % 111', rhsKeySchema = DBSchema('S_SUPPKEY', [('S_SUPPKEY', 'int')]))\
-    .union(db.query().fromTable('part')\
+    .union(
+    db.query().fromTable('part')
         .join(db.query().fromTable('partsupp').where('PS_SUPPLYCOST < 5'),
               rhsSchema = db.relationSchema('partsupp'),
               method = 'hash',
@@ -45,7 +45,7 @@ query1 = db.query().fromTable('part')\
               rhsSchema = db.relationSchema('supplier'),
               method = 'hash',
               lhsHashFn = 'hash(PS_SUPPKEY) % 111', lhsKeySchema = DBSchema('PS_SUPPKEY', [('PS_SUPPKEY', 'int')]),
-              rhsHashFn = 'hash(S_SUPPKEY) % 111', rhsKeySchema = DBSchema('S_SUPPKEY', [('S_SUPPKEY', 'int')]))\
+              rhsHashFn = 'hash(S_SUPPKEY) % 111', rhsKeySchema = DBSchema('S_SUPPKEY', [('S_SUPPKEY', 'int')])))\
     .select({'P_NAME': ('P_NAME', 'char(55)'), 'S_NAME': ('S_NAME', 'char(25)')})\
     .finalize()
 
