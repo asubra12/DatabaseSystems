@@ -55,7 +55,7 @@ query1 = db.query().fromTable('part')\
           rhsSchema = db.relationSchema('lineitem'),
           method = 'block-nested-loops',
           expr = 'P_PARTKEY == L_PARTKEY')\
-    .groupBy(groupSchema = DBSchem('P_NAME', [('P_NAME', 'char(55)')],
+    .groupBy(groupSchema = DBSchema('P_NAME', [('P_NAME', 'char(55)')],
                                    aggSchema = DBSchema('COUNT', [('COUNT', 'int')]),
                                    groupExpr(lambda e: e.P_NAME),
                                    aggExprs = [(0, lambda acc, e:acc + 1, lambda x: x)],

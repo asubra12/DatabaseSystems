@@ -156,7 +156,55 @@ def query1Hash_test(db, printOutput):
     print('Time', duration)
     return
 
-# databases = ['HW2_0.001.db', 'HW2_0.01.db']
+def query2BNL_test(db, printOutput):
+    query2 = db.query().fromTable('part') \
+        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG = \'R\''),
+              rhsSchema=db.relationSchema('lineitem'),
+              method='block-nested-loops',
+              expr='P_PARTKEY == L_PARTKEY') \
+        .groupBy(groupSchema=DBSchema('P_NAME', [('P_NAME', 'char(55)')]),
+                    aggSchema=DBSchema('COUNT', [('COUNT', 'int')]),
+                    groupExpr=(lambda e: e.P_NAME),
+                    aggExprs=[(0, lambda acc, e: acc + 1, lambda x: x)],
+                    groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .finalize()
+
+    start = time.time()
+    processedQuery = [query2.schema().unpack(tup) for page in db.processQuery(query2) for tup in page[1]]
+    end = time.time()
+    duration = end - start
+    print('Query: Query 2, BNL')
+    if printOutput:
+        print('Results: ', processedQuery)
+    print('Time', duration)
+    return
+
+def query2Hash_test(db, printOutput):
+    query2 = db.query().fromTable('part') \
+        .join(db.query().fromTable('lineitem').where('L_RETURNFLAG = \'R\''),
+              rhsSchema=db.relationSchema('lineitem'),
+              method='hash',
+              lhsHashFn='hash(P_PARTKEY) % 111', lhsKeySchema=DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]),
+              rhsHashFn='hash(L_PARTKEY) % 111', rhsKeySchema=DBSchema('L_PARTKEY', [('L_PARTKEY', 'int')])) \
+            .groupBy(groupSchema=DBSchema('P_NAME', [('P_NAME', 'char(55)')]),
+                    aggSchema=DBSchema('COUNT', [('COUNT', 'int')]),
+                    groupExpr=(lambda e: e.P_NAME),
+                    aggExprs=[(0, lambda acc, e: acc + 1, lambda x: x)],
+                    groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .finalize()
+
+    start = time.time()
+    processedQuery = [query2.schema().unpack(tup) for page in db.processQuery(query2) for tup in page[1]]
+    end = time.time()
+    duration = end - start
+    print('Query: Query 2, Hash')
+    if printOutput:
+        print('Results: ', processedQuery)
+    print('Time', duration)
+    return
+
+
+    # databases = ['HW2_0.001.db', 'HW2_0.01.db']
 # print(sqlite_tests(databases[0]))
 # print(sqlite_tests(databases[1]))
 
