@@ -288,7 +288,94 @@ def query3aHash_test(db, printOutput):
         print('Results: ', processedQuery)
     print('Time', duration)
     return
-    # databases = ['HW2_0.001.db', 'HW2_0.01.db']
+
+def query3bBNL_test(db, printOutput):
+    query3 = db.query().fromTable('part') \
+        .join(db.query().fromTable('lineitem'),
+              rhsSchema=db.relationSchema('lineitem'),
+              method='block-nested-loops',
+              expr='L_PARTKEY == P_PARTKEY') \
+        .join(db.query().fromTable('orders'),
+              rhsSchema=db.relationSchema('orders'),
+              method='block-nested-loops',
+              expr='L_ORDERKEY == O_ORDERKEY') \
+        .join(db.query().fromTable('customer'),
+              rhsSchema=db.relationSchema('customer'),
+              method='block-nested-loops',
+              expr='O_CUSTKEY == C_CUSTKEY') \
+        .join(db.query().fromTable('part'),
+              rhsSchema=db.relationSchema('nation'),
+              method='block-nested-loops',
+              expr='C_NATIONKEY == N_NATIONKEY') \
+        .groupBy(groupSchema=DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
+                 aggSchema=DBSchema('SUM', [('SUM', 'double')]),
+                 groupExpr=(lambda e: (e.N_NAME, e.P_NAME)),
+                 aggExprs=[(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .groupBy(groupSchema=DBSchema('SECOND', [('N_NAME', 'char(25)')]),
+                 aggSchema=DBSchema('MAX', [('MAX', 'double')]),
+                 groupExpr=(lambda e: e.N_NAME),
+                 aggExprs=[(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'double')}) \
+        .finalize()
+
+    start = time.time()
+    processedQuery = [query3.schema().unpack(tup) for page in db.processQuery(query3) for tup in page[1]]
+    end = time.time()
+    duration = end - start
+    print('Query: Query 3b (Order Reversed), BNL')
+    if printOutput:
+        print('Results: ', processedQuery)
+    print('Time', duration)
+    return
+
+def query3bHash_test(db, printOutput):
+    query3 = db.query().fromTable('part') \
+        .join(db.query().fromTable('lineitem'),
+              rhsSchema=db.relationSchema('lineitem'),
+              method='hash',
+              lhsHashFn='hash(P_PARTKEY) % 111', lhsKeySchema=DBSchema('P_PARTKEY', [('P_PARTKEY', 'int')]),
+              rhsHashFn='hash(L_PARTKEY) % 111', rhsKeySchema=DBSchema('L_PARTKEY', [('L_PARTKEY', 'int')])) \
+        .join(db.query().fromTable('orders'),
+              rhsSchema=db.relationSchema('orders'),
+              method='hash',
+              lhsHashFn='hash(L_ORDERKEY) % 111', lhsKeySchema=DBSchema('L_ORDERKEY', [('L_ORDERKEY', 'int')]),
+              rhsHashFn='hash(O_ORDERKEY) % 111', rhsKeySchema=DBSchema('O_ORDERKEY', [('O_ORDERKEY', 'int')])) \
+        .join(db.query().fromTable('customer'),
+              rhsSchema=db.relationSchema('customer'),
+              method='hash',
+              lhsHashFn='hash(O_CUSTKEY) % 111', lhsKeySchema=DBSchema('O_CUSTKEY', [('O_CUSTKEY', 'int')]),
+              rhsHashFn='hash(C_CUSTKEY) % 111', rhsKeySchema=DBSchema('C_CUSTKEY', [('C_CUSTKEY', 'int')])) \
+        .join(db.query().fromTable('nation'),
+              rhsSchema=db.relationSchema('nation'),
+              method='hash',
+              lhsHashFn = 'hash(C_NATIONKEY) % 111', lhsKeySchema = DBSchema('C_NATIONKEY', [('C_NATIONKEY', 'int')]),
+              rhsHashFn = 'hash(N_NATIONKEY) % 111', rhsKeySchema = DBSchema('N_NATIONKEY', [('N_NATIONKEY', 'int')])) \
+        .groupBy(groupSchema=DBSchema('FIRST', [('N_NAME', 'char(25)'), ('P_NAME', 'char(55)')]),
+                 aggSchema=DBSchema('SUM', [('SUM', 'double')]),
+                 groupExpr=(lambda e: (e.N_NAME, e.P_NAME)),
+                 aggExprs=[(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .groupBy(groupSchema=DBSchema('SECOND', [('N_NAME', 'char(25)')]),
+                 aggSchema=DBSchema('MAX', [('MAX', 'double')]),
+                 groupExpr=(lambda e: e.N_NAME),
+                 aggExprs=[(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
+                 groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
+        .select({'NATION': ('N_NAME', 'char(25)'), 'MAX': ('MAX', 'double')}) \
+        .finalize()
+
+    start = time.time()
+    processedQuery = [query3.schema().unpack(tup) for page in db.processQuery(query3) for tup in page[1]]
+    end = time.time()
+    duration = end - start
+    print('Query: Query 3b (Order Reversed), Hash')
+    if printOutput:
+        print('Results: ', processedQuery)
+    print('Time', duration)
+    return
+
+# databases = ['HW2_0.001.db', 'HW2_0.01.db']
 # print(sqlite_tests(databases[0]))
 # print(sqlite_tests(databases[1]))
 
