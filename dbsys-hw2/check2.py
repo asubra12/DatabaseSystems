@@ -122,8 +122,8 @@ query1 = db.query().fromTable('nation')\
     .join(db.query().fromTable('lineitem'),
           rhsSchema=db.relationSchema('lineitem'),
           method='hash',
-          lhsHashFn='hash(C_CUSTKEY) % 111', lhsKeySchema=DBSchema('O_ORDERKEY', [('O_ORDERKEY', 'int')]),
-          rhsHashFn='hash(O_CUSTKEY) % 111', rhsKeySchema=DBSchema('L_ORDERKEY', [('L_ORDERKEY', 'int')]))\
+          lhsHashFn='hash(O_ORDERKEY) % 111', lhsKeySchema=DBSchema('O_ORDERKEY', [('O_ORDERKEY', 'int')]),
+          rhsHashFn='hash(L_ORDERKEY) % 111', rhsKeySchema=DBSchema('L_ORDERKEY', [('L_ORDERKEY', 'int')]))\
     .join(db.query().fromTable('part'),
           rhsSchema=db.relationSchema('part'),
           method='hash',
