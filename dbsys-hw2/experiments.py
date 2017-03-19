@@ -226,7 +226,7 @@ def query3aBNL_test(db, printOutput):
                  groupExpr=(lambda e: (e.N_NAME, e.P_NAME)),
                  aggExprs=[(0, lambda acc, e: acc + e.L_QUANTITY, lambda x: x)],
                  groupHashFn=(lambda gbVal: hash(gbVal[0]) % 111)) \
-        .groupBy(groupSchema=DBSchema('SECOND', [('N_NAME')]),
+        .groupBy(groupSchema=DBSchema('SECOND', [('N_NAME', 'char(25)')]),
                  aggSchema=DBSchema('MAX', [('MAX', 'double')]),
                  groupExpr=(lambda e: e.N_NAME),
                  aggExprs=[(0, lambda acc, e: max(acc, e.SUM), lambda x: x)],
