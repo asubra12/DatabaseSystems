@@ -110,7 +110,7 @@ def query1BNL_test(db):
         .finalize()
 
     start = time.time()
-    processedQuery=db.getResults(query1)
+    processedQuery=[query1.schema().unpack(tup) for page in db.processQuery(query1) for tup in page[1]]
     end = time.time()
     duration = start-end
     print('Query: Query 1, Block Nested Loops')
