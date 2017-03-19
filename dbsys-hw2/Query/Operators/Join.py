@@ -235,20 +235,22 @@ class Join(Operator):
       if lKey in rPartitions:  # Check if the key is in our inner partition. No need for 'eval' now
         rRelId = rPartitions[lKey]
         rFile = self.storage.fileMgr.relationFile(rRelId)[1]  # Get the file of all tuples w the same hash
-
         lPages = lFile.pages(pinned=True)
-        rPages = rFile.pages(pinned=True)
 
         for (lPageId, lPage) in lPages:
           for lTuple in lPage:
             joinExprEnv = self.loadSchema(self.lhsSchema, lTuple)
 
+            rPages = rFile.pages(pinned=True)
             for (rPageId, rPage) in rPages:
               for rTuple in rPage:
-                joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
+                lKeyCheck = self.lhsSchema.project(self.lhsSchema.unpack(lTuple), self.lhsKeySchema)
+                rKeyCheck = self.rhsSchema.project(self.rhsSchema.unpack(rTuple), self.rhsKeySchema)
 
-                outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
-                self.emitOutputTuple(self.joinSchema.pack(outputTuple))
+                if lKeyCheck == rKeyCheck:
+                  joinExprEnv.update(self.loadSchema(self.rhsSchema, rTuple))
+                  outputTuple = self.joinSchema.instantiate(*[joinExprEnv[f] for f in self.joinSchema.fields])
+                  self.emitOutputTuple(self.joinSchema.pack(outputTuple))
 
               bp.unpinPage(rPageId)
 
