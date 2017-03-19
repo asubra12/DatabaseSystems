@@ -121,3 +121,4 @@ def query1BNL_test(db):
 # databases = ['HW2_0.001.db', 'HW2_0.01.db']
 # print(sqlite_tests(databases[0]))
 # print(sqlite_tests(databases[1]))
+
