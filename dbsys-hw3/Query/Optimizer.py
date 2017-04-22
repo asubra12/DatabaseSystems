@@ -25,9 +25,9 @@ class Optimizer:
     pass
 
   # Join Order Optimization
-  query4 = db.query().fromTable('employee').join( \
-    db.query().fromTable('department'), \
-    method='block-nested-loops', expr='id == eid').finalize()
+query4 = db.query().fromTable('employee').join( \
+db.query().fromTable('department'), \
+method='block-nested-loops', expr='id == eid').finalize()
 
   >>> db.optimizer.pickJoinOrder(query4)
 
