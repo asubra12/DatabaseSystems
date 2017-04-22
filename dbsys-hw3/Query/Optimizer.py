@@ -42,7 +42,7 @@ method='block-nested-loops', expr='id == eid')\
 .where('eid > 0 and id > 0 and (eid == 5 or id == 6)')\
 .select({'id': ('id', 'int'), 'eid':('eid','int')}).finalize()
 
-db.optimizer.pushdownOperators(query5)
+newQuery = db.optimizer.pushdownOperators(query5)
 
   """
 
@@ -66,7 +66,7 @@ db.optimizer.pushdownOperators(query5)
     root = plan.root
     newPlan = self.singlePushDown(root)
 
-    return newPlan
+    return Plan(root=newPlan)
 
   def singlePushDown(self, operator):
 
@@ -124,7 +124,7 @@ db.optimizer.pushdownOperators(query5)
 
 
 
-    if operator.operatorType() == 'Project':
+    elif operator.operatorType() == 'Project':
       projectOperator = operator
       projectOperator.subPlan = self.singlePushDown(projectOperator.subPlan)
 
@@ -132,7 +132,14 @@ db.optimizer.pushdownOperators(query5)
       subplanType = subPlan.operatorType()
 
       if subplanType == 'Select':
-        pass
+        selectCriteria = ExpressionInfo(subPlan.selectExpr).getAttributes()
+
+        for selection in selectCriteria:
+          if selection not in operator.projectExprs:
+            return operator
+
+        operator.subPlan = operator.subPlan.subPlan
+        operator.subPlan.subPlan = self.singlePushDown(operator)
 
       elif subplanType.endswith('Join'):
         lhsPlan = subPlan.lhsPlan
@@ -169,37 +176,17 @@ db.optimizer.pushdownOperators(query5)
       return projectOperator.subPlan
 
 
+    elif operator.operatorType() == 'UnionAll' or operator.operatorType().endswith('Join'):
+      operator.lhsPlan = self.singlePushDown(operator.lhsPlan)
+      operator.rhsPlan = self.singlePushDown(operator.rhsPlan)
+      return operator
 
+    elif operator.operatorType() == 'GroupBy':
+      operator.subPlan = self.singlePushDown(operator)
+      return operator
 
-
-
-
-
-
-
-
-
-
-  def pushdownProject(self, projectOperator):
-    subplan = projectOperator.subPlan
-    subplanType = subplan.operatorType()
-
-    if subplanType == 'Select':
-
-      subplanExpr = ExpressionInfo(subplan.selectExpr).getAttributes()
-
-    # Check what operator is below
-      # If its a Select Operator
-        # The select expressions must be the same as the project expressions, in which case skip the select
-        # If not, the project operator cannot be pushed down past select
-      # If its a join
-        # Check what fields are in the left and right side of the join
-        # Split the project expressions into whatever's on the left and right side of join
-        # Insert the project below the join, and continue the pushDown
-      # If its a union
-        # Apply the exact same project to both sides of the union
-
-
+    else:
+      return operator
 
   # Returns an optimized query plan with joins ordered via a System-R style
   # dyanmic programming algorithm. The plan cost should be compared with the
@@ -215,6 +202,6 @@ db.optimizer.pushdownOperators(query5)
 
     return joinPicked_plan
 #
-# if __name__ == "__main__":
-#   import doctest
-#   doctest.testmod()
+if __name__ == "__main__":
+  import doctest
+  doctest.testmod()
