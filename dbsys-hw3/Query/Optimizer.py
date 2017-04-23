@@ -4,6 +4,7 @@ from Query.Plan import Plan
 from Query.Operators.Join import Join
 from Query.Operators.Project import Project
 from Query.Operators.Select import Select
+from Query.Operators.TableScan import TableScan
 from Utils.ExpressionInfo import ExpressionInfo
 
 class Optimizer:
@@ -192,9 +193,48 @@ newQuery = db.optimizer.pushdownOperators(query5)
   # dyanmic programming algorithm. The plan cost should be compared with the
   # use of the cost model below.
   def pickJoinOrder(self, plan):
-    raise NotImplementedError
+    joins, tableIDs, planIDs, fields = self.optimizerSetup(plan)
 
-  # Optimize the given query plan, returning the resulting improved plan.
+    if len(joins) == 0:
+      return plan
+
+
+
+
+
+  def optimizerSetup(self, plan):
+    joins = []
+    tableIDs = []
+    planIDs = {}
+    fields = {}
+
+    for (num, operator) in plan.flatten():
+
+      if isinstance(operator, Select):
+        if isinstance(operator.subPlan, TableScan):
+          tableIDs.append(operator.subPlan.id())
+          planIDs[str(operator.subPlan.id())] = operator
+          fields[operator.subPlan.id()] = operator.subPlan.schema().fields
+
+      elif isinstance(operator, Project):
+        if isinstance(operator.subPlan, TableScan):
+          tableIDs.append(operator.subPlan.id())
+          planIDs[str(operator.subPlan.id())] = operator
+          fields[operator.subPlan.id()] = operator.subPlan.schema().fields
+
+      elif isinstance(operator, TableScan):
+        if str(operator.id()) not in planIDs:
+          tableIDs.append(operator.id())
+          planIDs[str(operator.id())] = operator
+          fields[operator.id()] = operator.schema().fields
+
+      elif isinstance(operator, Join):
+        joins.append(operator)
+
+    return joins, tableIDs, planIDs, fields
+
+
+          # Optimize the given query plan, returning the resulting improved plan.
   # This should perform operation pushdown, followed by join order selection.
   def optimizeQuery(self, plan):
     pushedDown_plan = self.pushdownOperators(plan)
