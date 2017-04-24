@@ -253,7 +253,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
             print('PlanDict: ', planDict)
 
-            for joinMethod in ["hash", "nested-loops", "block-nested-loops"]:  # This should include nested loop and whatever as well
+            for joinMethod in ["hash", "nested-loops", "block-nested-loops"]:
 
               if joinMethod == "hash":
                 print('HashMethod')
@@ -290,6 +290,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
         newKey = frozenset(joinOrdering)
         self.addPlanCost(newKey, bestCost, bestPlan)
+        optimalSubPlans[newKey] = bestPlan
 
       numTables += 1
 
