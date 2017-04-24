@@ -149,12 +149,12 @@ def query5(db):
     return query
 
 
-db=setup()
-testQuery1=query1(db)
-testQuery2=query2(db)
-testQuery3=query3(db)
-testQuery4=query4(db)
-testQuery5=query5(db)
+db = setup()
+testQuery1 = query1(db)
+testQuery2 = query2(db)
+testQuery3 = query3(db)
+testQuery4 = query4(db)
+testQuery5 = query5(db)
 
 # Time it normally
 # Time it when optimzed

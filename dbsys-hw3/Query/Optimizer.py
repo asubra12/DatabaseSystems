@@ -407,14 +407,3 @@ newQuery = db.optimizer.pushdownOperators(query5)
 # if __name__ == "__main__":
 #   import doctest
 #   doctest.testmod()
-testQuery2 = query2(db)
-opt = Optimizer(db)
-newQuery2 = opt.optimizeQuery(testQuery2)
-
-testQuery3 = query3(db)
-opt = Optimizer(db)
-newQuery3 = opt.optimizeQuery(testQuery3)
-
-testQuery4 = query4(db)
-opt = Optimizer(db)
-newQuery4 = opt.optimizeQuery(testQuery4)
