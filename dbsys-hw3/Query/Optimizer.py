@@ -6,6 +6,8 @@ from Query.Operators.Project import Project
 from Query.Operators.Select import Select
 from Query.Operators.TableScan import TableScan
 from Utils.ExpressionInfo import ExpressionInfo
+from Catalog.Schema import DBSchema
+import Database
 
 class Optimizer:
   """
@@ -50,16 +52,21 @@ newQuery = db.optimizer.pushdownOperators(query5)
   def __init__(self, db):
     self.db = db
     self.statsCache = {}
-    self.bestPlan = None
+    self.nubPlan = None
 
   # Caches the cost of a plan computed during query optimization.
-  def addPlanCost(self, plan, cost):
-    raise NotImplementedError
+  def addPlanCost(self, IDs, plan, cost):
+    self.statsCache[IDs] = (plan, cost)
+    return True
 
   # Checks if we have already computed the cost of this plan.
-  def getPlanCost(self, plan):
-    raise NotImplementedError
-
+  def getPlanCost(self, IDs):
+    try:
+      returnPlanCost = self.statsCache[IDs]
+    except KeyError:
+      print('That Plan is not in the cache yet')
+      return None
+    return returnPlanCost
   # Given a plan, return an optimized plan with both selection and
   # projection operations pushed down to their nearest defining relation
   # This does not need to cascade operators, but should determine a
@@ -207,6 +214,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
       return plan
 
     numTables = 2
+    print('NumTables: ', numTables)
 
     while numTables <= len(tableIDs):
       joinOrderings = itertools.combinations(tableIDs, numTables)
@@ -237,32 +245,115 @@ newQuery = db.optimizer.pushdownOperators(query5)
           allAttributes.extend(fields[rhsKey])
 
 
-          for join in joins:
-            if join.joinMethod == 'Hash':
-              lhsCheck = join.lhsKeySchema.fields  # This is a list
-              rhsCheck = join.rhsKeySchema.fields  # This is a list
-              joinAttr = lhsCheck + rhsCheck
+          contains, planDict = self.checkJoins(joins, allAttributes, cachedLHS, cachedRHS)
 
-              for attr in joinAttr:
-                if attr not in allAttributes:
+          print('Got to Contains')
 
-              # make sure all attributes required for the join are in the lhs+rhs arguments
-                # Need to worry about a join being just on the lhs arguments?
-                # Is there only one join that will be possible ie. can we break out of loop?
+          if contains:
 
-            # Do a similar check for BNL and NL joins
-            # Store the join expression
+            print('PlanDict: ', planDict)
 
-          # Iterate through potential join iterations
-            # There's probably some way to convert a hash to BNL/NL and vice versa
-            # Make the plan, prepare it, sample, get the cost, update the bestCost/bestPlan
+            for joinMethod in ["hash", "nested-loops", "block-nested-loops"]:  # This should include nested loop and whatever as well
 
-      # Add a frozenset/Plan to the optimalSubPlans dict
-    # Increment numTables
-    # Save the best Plan
+              if joinMethod == "hash":
+                print('HashMethod')
+                lhsPlan = cachedLHS
+                rhsPlan = cachedRHS
+                lhsHashFn = planDict['lhsHashFn']
+                rhsHashFn = planDict['rhsHashFn']
+                lhsKeySchema = planDict['lhsKeySchema']
+                rhsKeySchema = planDict['rhsKeySchema']
 
+                tryPlan = Plan(root=Join(method=joinMethod,
+                                         lhsPlan=cachedLHS, lhsHashFn=lhsHashFn, lhsKeySchema=lhsKeySchema,
+                                         rhsPlan=cachedRHS, rhsHashFn=rhsHashFn, rhsKeySchema=rhsKeySchema))
+                tryPlan.prepare(self.db)
+                tryPlan.sample(1.0)
+                cost = tryPlan.cost(estimated=True)
 
+                if cost < bestCost:
+                  bestCost = cost
+                  bestPlan = tryPlan
 
+              else:
+                print(joinMethod)
+                joinExpr = planDict['joinExpr']
+                tryPlan = Plan(root=Join(lhsPlan=cachedLHS, rhsPlan=cachedRHS, method=joinMethod, expr=joinExpr))
+                tryPlan.prepare(self.db)
+                tryPlan.sample(1.0)
+
+                cost = tryPlan.cost(estimated=True)
+
+                if cost < bestCost:
+                  bestCost = cost
+                  bestPlan = tryPlan
+
+        newKey = frozenset(joinOrdering)
+        self.addPlanCost(newKey, bestCost, bestPlan)
+
+      numTables += 1
+
+    self.nubPlan.subPlan = self.statsCache[frozenset(tableIDs)][1].root
+
+    plan.prepare(self.db)
+
+    return plan
+
+  def checkJoins(self, joins, allAttributes, cachedLHS, cachedRHS):
+    for join in joins:
+      if join.joinMethod == 'hash':
+        lhsCheck = join.lhsKeySchema.fields  # This is a list
+        rhsCheck = join.rhsKeySchema.fields  # This is a list
+        joinAttr = lhsCheck + rhsCheck
+
+        contains = all(x in allAttributes for x in joinAttr)
+
+        if contains:
+          keySchema1 = DBSchema('keyschema1', [(lhsCheck[0], 'int')])
+          keySchema2 = DBSchema('keyschema2', [(rhsCheck[0], 'int')])
+          hashFn1 = 'hash(' + lhsCheck[0] + ') % 7'
+          hashFn2 = 'hash(' + rhsCheck[0] + ') % 7'
+          joinExpr = lhsCheck[0] + ' == ' + rhsCheck[0]
+
+          if lhsCheck[0] in cachedLHS.schema().fields:
+            return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn1, 'lhsKeySchema': keySchema1,
+                    'rhsHashFn': hashFn2, 'rhsKeySchema': keySchema2, 'joinExpr': joinExpr}
+          else:
+            return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn2, 'lhsKeySchema': keySchema2,
+                    'rhsHashFn': hashFn1, 'rhsKeySchema': keySchema1, 'joinExpr': joinExpr}
+        else:
+          return False, None
+
+      elif join.joinExpr:
+        joinAttr = ExpressionInfo(join.joinExpr).getAttributes()
+        contains = all(x in allAttributes for x in joinAttr)
+
+        if contains:
+          joinAttr1 = joinAttr.pop()
+          joinAttr2 = joinAttr.pop()
+
+          try:
+            joinAttr.pop()
+          except KeyError:
+            print('There are only two attributes in this, as expected')
+
+          keySchema1 = DBSchema('keySchema1', [([joinAttr1, 'int'])])
+          keySchema2 = DBSchema('keySchema1', [([joinAttr2, 'int'])])
+          hashFn1 = 'hash(' + joinAttr1 + ') % 7'
+          hashFn2 = 'hash(' + joinAttr2 + ') % 7'
+          joinExpr = join.joinExpr
+
+          if joinAttr1 in cachedLHS.schema().fields:
+            return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn1, 'lhsKeySchema': keySchema1,
+                          'rhsHashFn': hashFn2, 'rhsKeySchema': keySchema2, 'joinExpr': joinExpr}
+          else:
+            return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn2, 'lhsKeySchema': keySchema2,
+                          'rhsHashFn': hashFn1, 'rhsKeySchema': keySchema1, 'joinExpr': joinExpr}
+        else:
+          return False, None
+
+        # BNL and NL stuff here
+      return
 
   def optimizerSetup(self, plan):
     joins = []
@@ -272,6 +363,9 @@ newQuery = db.optimizer.pushdownOperators(query5)
     fields = {}
 
     for (num, operator) in plan.flatten():
+
+      if not isinstance(operator, Join) and not isinstance(operator, TableScan) and isinstance(operator.subPlan, Join) and self.nubPlan is None:
+        self.nubPlan = operator
 
       if isinstance(operator, Select):
         if isinstance(operator.subPlan, TableScan):
@@ -308,6 +402,18 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
     return joinPicked_plan
 #
-if __name__ == "__main__":
-  import doctest
-  doctest.testmod()
+
+# if __name__ == "__main__":
+#   import doctest
+#   doctest.testmod()
+testQuery2 = query2(db)
+opt = Optimizer(db)
+newQuery2 = opt.optimizeQuery(testQuery2)
+
+testQuery3 = query3(db)
+opt = Optimizer(db)
+newQuery3 = opt.optimizeQuery(testQuery3)
+
+testQuery4 = query4(db)
+opt = Optimizer(db)
+newQuery4 = opt.optimizeQuery(testQuery4)

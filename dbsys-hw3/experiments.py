@@ -76,7 +76,7 @@ def query4(db):
             db.query().fromTable('customer'),
             method='hash',
             lhsHashFn='hash(N_NATIONKEY) % 11', lhsKeySchema=DBSchema('nationKey1', [('N_NATIONKEY', 'int')]),
-            rhsHashFn='hash(C_NATIONKEY) % 11', rhsKeySchema=DBSchema('nationKey2', [('N_NATIONKEY', 'int')]))\
+            rhsHashFn='hash(C_NATIONKEY) % 11', rhsKeySchema=DBSchema('nationKey2', [('C_NATIONKEY', 'int')]))\
         .join(
             db.query().fromTable('orders'),
             method='hash',
@@ -88,7 +88,7 @@ def query4(db):
             lhsHashFn='hash(O_ORDERKEY) % 11', lhsKeySchema=DBSchema('orderKey1', [('O_ORDERKEY', 'int')]),
             rhsHashFn='hash(L_ORDERKEY) % 11', rhsKeySchema=DBSchema('orderKey2', [('L_ORDERKEY', 'int')])) \
         .where(
-            "O_ORDERDATE >= 19931001 and O_ORDERDATE < 19940101 and L_RETURNFLAG = 'R'")\
+            "O_ORDERDATE >= 19931001 and O_ORDERDATE < 19940101 and L_RETURNFLAG == 'R'")\
         .groupBy(
             groupSchema=DBSchema('groupKey', [('C_CUSTKEY','int'),('C_NAME','char(25)'),('C_ACCTBAL','float'),('C_PHONE','char(15)'),('N_NAME','char(25)'),('C_ADDRESS','char(40)'),('C_COMMENT','char(117)')]),
             aggSchema=DBSchema('groupAgg', [('revenue', 'float')]),
@@ -135,7 +135,7 @@ def query5(db):
             lhsHashFn='hash(O_CUSTKEY) % 11', lhsKeySchema=DBSchema('custKey1', [('O_CUSTKEY', 'int')]),
             rhsHashFn='hash(C_CUSTKEY) % 11', rhsKeySchema=DBSchema('custKey2', [('C_CUSTKEY', 'int')])) \
         .where(
-            "R_NAME == 'ASIA' and O_ORDERDATE >= 19940101 and O_ORDERDATE < 19950101 and (C_NATIONKEY == S_NATIONKEY)")\
+            "R_NAME == 'ASIA' and O_ORDERDATE >= 19940101 and O_ORDERDATE < 19950101")\
         .groupBy(
             groupSchema=DBSchema('groupKey', [('N_NAME','char(25)')]),
             aggSchema=DBSchema('groupAgg', [('revenue', 'float')]),
