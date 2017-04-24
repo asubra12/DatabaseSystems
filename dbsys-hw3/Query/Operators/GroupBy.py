@@ -165,3 +165,9 @@ class GroupBy(Operator):
   def explain(self):
     return super().explain() + "(groupSchema=" + self.groupSchema.toString() \
                              + ", aggSchema=" + self.aggSchema.toString() + ")"
+
+  def localCost(self, estimated):
+    t = self.subPlan.cardinality(estimated)
+    p = t / (self.storage.bufferPool.pageSize / self.subPlan.schema().size)
+
+    return p + p
