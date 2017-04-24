@@ -6,7 +6,7 @@ import unittest
 import warnings
 
 def setup():
-    db = Database.Database(dataDir='~cs416/datasets/tpch-sf0.01')
+    db = Database.Database()
     return db
 
 def query1(db):
@@ -134,13 +134,8 @@ def query5(db):
             method='hash',
             lhsHashFn='hash(O_CUSTKEY) % 11', lhsKeySchema=DBSchema('custKey1', [('O_CUSTKEY', 'int')]),
             rhsHashFn='hash(C_CUSTKEY) % 11', rhsKeySchema=DBSchema('custKey2', [('C_CUSTKEY', 'int')])) \
-        .join(
-            db.query().fromTable('supplier'),
-            method='hash',
-            lhsHashFn='hash(C_NATIONKEY) % 11', lhsKeySchema=DBSchema('nationKey3', [('C_NATIONKEY', 'int')]),
-            rhsHashFn='hash(S_NATIONKEY) % 11', rhsKeySchema=DBSchema('nationKey4', [('S_NATIONKEY', 'int')])) \
         .where(
-            "R_NAME == 'ASIA' and O_ORDERDATE >= 19940101 and O_ORDERDATE < 19950101")\
+            "R_NAME == 'ASIA' and O_ORDERDATE >= 19940101 and O_ORDERDATE < 19950101 and (C_NATIONKEY == S_NATIONKEY)")\
         .groupBy(
             groupSchema=DBSchema('groupKey', [('N_NAME','char(25)')]),
             aggSchema=DBSchema('groupAgg', [('revenue', 'float')]),
@@ -159,3 +154,7 @@ testQuery1=query1(db)
 testQuery2=query2(db)
 testQuery3=query3(db)
 testQuery4=query4(db)
+testQuery5=query5(db)
+
+# Time it normally
+# Time it when optimzed

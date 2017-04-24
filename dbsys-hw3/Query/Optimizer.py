@@ -50,6 +50,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
   def __init__(self, db):
     self.db = db
     self.statsCache = {}
+    self.bestPlan = None
 
   # Caches the cost of a plan computed during query optimization.
   def addPlanCost(self, plan, cost):
@@ -196,32 +197,69 @@ newQuery = db.optimizer.pushdownOperators(query5)
   # dyanmic programming algorithm. The plan cost should be compared with the
   # use of the cost model below.
   def pickJoinOrder(self, plan):
-    joins, tableIDs, planIDs, fields = self.optimizerSetup(plan)
+    joins, tableIDs, optimalSubPlans, fields = self.optimizerSetup(plan)
+    # Joins is a list of joins
+    # TableIDs is a list of the operator on top of a tableScan or the scan itself (Select, Projcect)
+    # optimalSubPlan is a dictionary where the key is the top operator ID (from TableID) and val is the operator
+    # fields is a dictionary where key is top operator ID, val is the dictionary of fields
 
     if len(joins) == 0:
       return plan
 
     numTables = 2
-    bestPlan = None  # Build this up from scratch
 
     while numTables <= len(tableIDs):
-      joinOrderings = itertools.permutations(tableIDs, numTables)
+      joinOrderings = itertools.combinations(tableIDs, numTables)
 
-      # Check each ordering, check each join metho
-
-      for joinOrdering in joinOrderings:
-
-        cost = None
-        optimalPlan = None
+      # Check each ordering, check each join method
+      # Start with two tables total
+      # pick one as the LHS, one as the RHS
 
 
+      for joinOrdering in joinOrderings:  # This iterates through subsets of size numTables
+        bestCost = 1e99
+        bestPlan = None
+
+        for rhsID in joinOrdering:  # Eventually we'll even iterate through swapping 2-joins
+          lhsIDs = list(joinOrdering)
+          lhsIDs.remove(rhsID)  # Make this one the right side join
+          lhsKey = frozenset(lhsIDs)  # Key for optimalSubPlan dict
+          rhsKey = frozenset([rhsID])  # Key for optimalSubPlan dict
+
+          cachedLHS = optimalSubPlans[lhsKey] if lhsKey in optimalSubPlans else None  # Get the optimal subPlan
+          cachedRHS = optimalSubPlans[rhsKey]  # Get the optimal subPlan
+
+          # Do we even care about doing this join?
+          allAttributes = []
+
+          for lhsID in lhsIDs:
+            allAttributes.extend(fields[frozenset([lhsID])])  # These are all the attributes in the join
+          allAttributes.extend(fields[rhsKey])
 
 
+          for join in joins:
+            if join.joinMethod == 'Hash':
+              lhsCheck = join.lhsKeySchema.fields  # This is a list
+              rhsCheck = join.rhsKeySchema.fields  # This is a list
+              joinAttr = lhsCheck + rhsCheck
 
+              for attr in joinAttr:
+                if attr not in allAttributes:
 
+              # make sure all attributes required for the join are in the lhs+rhs arguments
+                # Need to worry about a join being just on the lhs arguments?
+                # Is there only one join that will be possible ie. can we break out of loop?
 
+            # Do a similar check for BNL and NL joins
+            # Store the join expression
 
+          # Iterate through potential join iterations
+            # There's probably some way to convert a hash to BNL/NL and vice versa
+            # Make the plan, prepare it, sample, get the cost, update the bestCost/bestPlan
 
+      # Add a frozenset/Plan to the optimalSubPlans dict
+    # Increment numTables
+    # Save the best Plan
 
 
 
@@ -229,7 +267,8 @@ newQuery = db.optimizer.pushdownOperators(query5)
   def optimizerSetup(self, plan):
     joins = []
     tableIDs = []
-    planIDs = {}
+    optimalSubPlans = {}
+    capturedTableScans = []
     fields = {}
 
     for (num, operator) in plan.flatten():
@@ -237,25 +276,28 @@ newQuery = db.optimizer.pushdownOperators(query5)
       if isinstance(operator, Select):
         if isinstance(operator.subPlan, TableScan):
           tableIDs.append(operator.id())
-          planIDs[str(operator.id())] = operator
-          fields[operator.id()] = operator.schema().fields
+          optimalSubPlans[frozenset([operator.id()])] = operator
+          fields[frozenset([operator.id()])] = operator.schema().fields
+          capturedTableScans.append(operator.subPlan.id())
 
       elif isinstance(operator, Project):
         if isinstance(operator.subPlan, TableScan):
           tableIDs.append(operator.id())
-          planIDs[str(operator.id())] = operator
-          fields[operator.id()] = operator.schema().fields
+          optimalSubPlans[frozenset([operator.id()])] = operator
+          fields[frozenset([operator.id()])] = operator.schema().fields
+          capturedTableScans.append(operator.subPlan.id())
+
 
       elif isinstance(operator, TableScan):
-        if str(operator.id()) not in planIDs:
+        if operator.id() not in capturedTableScans:
           tableIDs.append(operator.id())
-          planIDs[str(operator.id())] = operator
-          fields[operator.id()] = operator.schema().fields
+          optimalSubPlans[frozenset([operator.id()])] = operator
+          fields[frozenset([operator.id()])] = operator.schema().fields
 
       elif isinstance(operator, Join):
         joins.append(operator)
 
-    return joins, tableIDs, planIDs, fields
+    return joins, tableIDs, optimalSubPlans, fields
 
 
           # Optimize the given query plan, returning the resulting improved plan.
