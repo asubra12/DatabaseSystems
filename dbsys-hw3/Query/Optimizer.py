@@ -183,7 +183,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
       return operator
 
     elif operator.operatorType() == 'GroupBy':
-      operator.subPlan = self.singlePushDown(operator)
+      operator.subPlan = self.singlePushDown(operator.subPlan)
       return operator
 
     else:
@@ -197,6 +197,27 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
     if len(joins) == 0:
       return plan
+
+    numTables = 2
+    bestPlan = None  # Build this up from scratch
+
+    while numTables <= len(tableIDs):
+      joinOrderings = itertools.permutations(tableIDs, numTables)
+
+      # Check each ordering, check each join metho
+
+      for joinOrdering in joinOrderings:
+
+        cost = None
+        optimalPlan = None
+
+
+
+
+
+
+
+
 
 
 
@@ -212,15 +233,15 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
       if isinstance(operator, Select):
         if isinstance(operator.subPlan, TableScan):
-          tableIDs.append(operator.subPlan.id())
-          planIDs[str(operator.subPlan.id())] = operator
-          fields[operator.subPlan.id()] = operator.subPlan.schema().fields
+          tableIDs.append(operator.id())
+          planIDs[str(operator.id())] = operator
+          fields[operator.id()] = operator.schema().fields
 
       elif isinstance(operator, Project):
         if isinstance(operator.subPlan, TableScan):
-          tableIDs.append(operator.subPlan.id())
-          planIDs[str(operator.subPlan.id())] = operator
-          fields[operator.subPlan.id()] = operator.subPlan.schema().fields
+          tableIDs.append(operator.id())
+          planIDs[str(operator.id())] = operator
+          fields[operator.id()] = operator.schema().fields
 
       elif isinstance(operator, TableScan):
         if str(operator.id()) not in planIDs:
