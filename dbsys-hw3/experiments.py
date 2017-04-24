@@ -33,7 +33,40 @@ def query2(db):
             groupExpr=(lambda e: 1),
             aggExprs=[(0, lambda acc, e: acc + (e.L_EXTENDEDPRICE * (1 - e.L_DISCOUNT)), lambda x: x)],
             groupHashFn=(lambda gbVal: hash(gbVal) % 1))\
-        .select( \
+        .select(
             {'promo_revenue' : ('promo_revenue', 'float')}).finalize()
 
     return query
+
+def query3(db):
+    query = db.query().fromTable('customer')\
+        .join(
+            db.query().fromTable('orders'),
+            method='hash',
+            lhsHashFn='hash(C_CUSTKEY) % 5', lhsKeySchema=DBSchema('customerKey1', [('C_CUSTKEY', 'int')]),
+            rhsHashFn='hash(O_CUSTKEY) % 5', rhsKeySchema=DBSchema('customerKey2', [('O_CUSTKEY', 'int')]))\
+        .join(
+            db.query().fromTable('lineitem'),
+            method='hash',
+            lhsHashFn='hash(O_ORDERKEY) % 5', lhsKeySchema=DBSchema('orderKey1', [('O_ORDERKEY', 'int')]),
+            rhsHashFn='hash(L_ORDERKEY) % 5', rhsKeySchema=DBSchema('orderkey2', [('L_ORDERKEY', 'int')]))\
+        .where(
+            "C_MKTSEGMENT == 'BUILDING' and O_ORDERDATE < 19950315 and L_SHIPDATE > 19950315")\
+        .groupBy(
+            groupSchema=DBSchema('groupKey', [('L_ORDERKEY', 'int'), ('O_ORDERDATE', 'int'), ('O_SHIPPRIORITY', 'int')]),
+            aggSchema=DBSchema('groupAgg', [('revenue', 'float')]),
+            groupExpr=(lambda e: (e.L_ORDERKEY, e.O_ORDERDATE, e.O_SHIPPRIORITY)),
+            aggExprs=[(0, lambda acc, e: acc + (e.L_EXTENDEDPRICE * (1 - e.L_DISCOUNT)), lambda x: x)],
+            groupHashFn=(lambda gbVal: hash(gbVal) % 10))\
+        .select(
+            {'l_orderkey': ('L_ORDERKEY', 'int'),
+            'revenue': ('revenue', 'float'),
+            'o_orderdate': ('O_ORDERDATE', 'int'),
+            'o_shippriority': ('O_SHIPPRIORITY', 'int')})\
+        .finalize()
+    return query
+
+db=setup()
+testQuery1=query1(db)
+testQuery2=query2(db)
+testQuery3=query3(db)

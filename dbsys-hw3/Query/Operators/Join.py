@@ -374,7 +374,7 @@ class Join(Operator):
     tR = self.lhsPlan.cardinality(estimated)
     tS = self.rhsPlan.cardinality(estimated)
     pR = tR / (self.storage.bufferPool.pageSize / self.lhsPlan.schema().size)
-    pS = tS / (self.storage.bufferpool.pageSize / self.rhsPlan.schema().size)
+    pS = tS / (self.storage.bufferPool.pageSize / self.rhsPlan.schema().size)
     M = self.storage.bufferPool.numPages()
     pIDX = 0.5
     pK = 0.5

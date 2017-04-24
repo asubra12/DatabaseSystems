@@ -174,6 +174,9 @@ newQuery = db.optimizer.pushdownOperators(query5)
         subPlan.lhsPlan = self.singlePushDown(Project(subPlan.lhsPlan, projectOperator.projectExprs))
         subPlan.rhsPlan = self.singlePushDown(Project(subPlan.rhsPlan, projectOperator.projectExprs))
 
+      else:
+        return operator
+
       return projectOperator.subPlan
 
 
