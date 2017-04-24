@@ -6,7 +6,7 @@ import unittest
 import warnings
 
 def setup():
-    db = Database.Database(dataDir='~cs416/datasets/tpch-hw3/data-tpch-sf0.001')
+    db = Database.Database(dataDir='~cs416/datasets/tpch-sf0.01')
     return db
 
 def query1(db):
