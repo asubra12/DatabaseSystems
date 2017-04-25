@@ -7,6 +7,7 @@ from Query.Operators.Select import Select
 from Query.Operators.TableScan import TableScan
 from Utils.ExpressionInfo import ExpressionInfo
 from Catalog.Schema import DBSchema
+import experiments
 import Database
 
 class Optimizer:
@@ -53,6 +54,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
     self.db = db
     self.statsCache = {}
     self.nubPlan = None
+    self.checkPlan = None
 
   # Caches the cost of a plan computed during query optimization.
   def addPlanCost(self, IDs, plan, cost):
@@ -204,7 +206,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
   # dyanmic programming algorithm. The plan cost should be compared with the
   # use of the cost model below.
   def pickJoinOrder(self, plan):
-    joins, tableIDs, optimalSubPlans, fields = self.optimizerSetup(plan)
+    joins, tableIDs, optimalSubPlans, fields, nubPlan = self.optimizerSetup(plan)
     # Joins is a list of joins
     # TableIDs is a list of the operator on top of a tableScan or the scan itself (Select, Projcect)
     # optimalSubPlan is a dictionary where the key is the top operator ID (from TableID) and val is the operator
@@ -214,9 +216,9 @@ newQuery = db.optimizer.pushdownOperators(query5)
       return plan
 
     numTables = 2
-    print('NumTables: ', numTables)
 
     while numTables <= len(tableIDs):
+      print('NumTables: ', numTables)
       joinOrderings = itertools.combinations(tableIDs, numTables)
 
       # Check each ordering, check each join method
@@ -234,8 +236,12 @@ newQuery = db.optimizer.pushdownOperators(query5)
           lhsKey = frozenset(lhsIDs)  # Key for optimalSubPlan dict
           rhsKey = frozenset([rhsID])  # Key for optimalSubPlan dict
 
+
           cachedLHS = optimalSubPlans[lhsKey] if lhsKey in optimalSubPlans else None  # Get the optimal subPlan
           cachedRHS = optimalSubPlans[rhsKey]  # Get the optimal subPlan
+
+          if cachedLHS is None or cachedRHS is None:
+            continue
 
           # Do we even care about doing this join?
           allAttributes = []
@@ -247,16 +253,16 @@ newQuery = db.optimizer.pushdownOperators(query5)
 
           contains, planDict = self.checkJoins(joins, allAttributes, cachedLHS, cachedRHS)
 
-          print('Got to Contains')
+          # print('Got to Contains')
 
           if contains:
 
-            print('PlanDict: ', planDict)
+            # print('PlanDict: ', planDict)
 
             for joinMethod in ["hash", "nested-loops", "block-nested-loops"]:
 
               if joinMethod == "hash":
-                print('HashMethod')
+                # print('HashMethod')
                 lhsPlan = cachedLHS
                 rhsPlan = cachedRHS
                 lhsHashFn = planDict['lhsHashFn']
@@ -267,34 +273,36 @@ newQuery = db.optimizer.pushdownOperators(query5)
                 tryPlan = Plan(root=Join(method=joinMethod,
                                          lhsPlan=cachedLHS, lhsHashFn=lhsHashFn, lhsKeySchema=lhsKeySchema,
                                          rhsPlan=cachedRHS, rhsHashFn=rhsHashFn, rhsKeySchema=rhsKeySchema))
+
+
+                self.checkPlan = tryPlan
                 tryPlan.prepare(self.db)
                 tryPlan.sample(1.0)
                 cost = tryPlan.cost(estimated=True)
-
-                if cost < bestCost:
-                  bestCost = cost
-                  bestPlan = tryPlan
+                # print('HashCost: ', cost)
 
               else:
-                print(joinMethod)
+                # print(joinMethod)
                 joinExpr = planDict['joinExpr']
                 tryPlan = Plan(root=Join(lhsPlan=cachedLHS, rhsPlan=cachedRHS, method=joinMethod, expr=joinExpr))
+
+                self.checkPlan = tryPlan
                 tryPlan.prepare(self.db)
                 tryPlan.sample(1.0)
-
                 cost = tryPlan.cost(estimated=True)
+                # print(joinMethod + ' Cost: ', cost)
 
-                if cost < bestCost:
-                  bestCost = cost
-                  bestPlan = tryPlan
+              if cost < bestCost:
+                bestCost = cost
+                bestPlan = tryPlan
 
         newKey = frozenset(joinOrdering)
         self.addPlanCost(newKey, bestCost, bestPlan)
-        optimalSubPlans[newKey] = bestPlan
+        optimalSubPlans[newKey] = bestPlan.root if bestPlan is not None else None
 
       numTables += 1
 
-    self.nubPlan.subPlan = self.statsCache[frozenset(tableIDs)][1].root
+    nubPlan.subPlan = self.statsCache[frozenset(tableIDs)][1].root
 
     plan.prepare(self.db)
 
@@ -307,8 +315,9 @@ newQuery = db.optimizer.pushdownOperators(query5)
         rhsCheck = join.rhsKeySchema.fields  # This is a list
         joinAttr = lhsCheck + rhsCheck
 
-        contains = all(x in allAttributes for x in joinAttr)
+        contains = all(x in allAttributes for x in joinAttr) and any(y in cachedRHS.schema().fields for y in joinAttr)
 
+        # print(lhsCheck, rhsCheck, contains)
         if contains:
           keySchema1 = DBSchema('keyschema1', [(lhsCheck[0], 'int')])
           keySchema2 = DBSchema('keyschema2', [(rhsCheck[0], 'int')])
@@ -322,8 +331,6 @@ newQuery = db.optimizer.pushdownOperators(query5)
           else:
             return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn2, 'lhsKeySchema': keySchema2,
                     'rhsHashFn': hashFn1, 'rhsKeySchema': keySchema1, 'joinExpr': joinExpr}
-        else:
-          return False, None
 
       elif join.joinExpr:
         joinAttr = ExpressionInfo(join.joinExpr).getAttributes()
@@ -336,7 +343,8 @@ newQuery = db.optimizer.pushdownOperators(query5)
           try:
             joinAttr.pop()
           except KeyError:
-            print('There are only two attributes in this, as expected')
+            pass
+            # print('There are only two attributes in this, as expected')
 
           keySchema1 = DBSchema('keySchema1', [([joinAttr1, 'int'])])
           keySchema2 = DBSchema('keySchema1', [([joinAttr2, 'int'])])
@@ -350,11 +358,8 @@ newQuery = db.optimizer.pushdownOperators(query5)
           else:
             return True, {'joinMethod': 'hash', 'lhsHashFn': hashFn2, 'lhsKeySchema': keySchema2,
                           'rhsHashFn': hashFn1, 'rhsKeySchema': keySchema1, 'joinExpr': joinExpr}
-        else:
-          return False, None
-
-        # BNL and NL stuff here
-      return
+    else:
+      return False, None
 
   def optimizerSetup(self, plan):
     joins = []
@@ -362,11 +367,12 @@ newQuery = db.optimizer.pushdownOperators(query5)
     optimalSubPlans = {}
     capturedTableScans = []
     fields = {}
+    nubPlan = None
 
     for (num, operator) in plan.flatten():
 
-      if not isinstance(operator, Join) and not isinstance(operator, TableScan) and isinstance(operator.subPlan, Join) and self.nubPlan is None:
-        self.nubPlan = operator
+      if not isinstance(operator, Join) and not isinstance(operator, TableScan) and isinstance(operator.subPlan, Join):
+        nubPlan = operator
 
       if isinstance(operator, Select):
         if isinstance(operator.subPlan, TableScan):
@@ -392,7 +398,7 @@ newQuery = db.optimizer.pushdownOperators(query5)
       elif isinstance(operator, Join):
         joins.append(operator)
 
-    return joins, tableIDs, optimalSubPlans, fields
+    return joins, tableIDs, optimalSubPlans, fields, nubPlan
 
 
           # Optimize the given query plan, returning the resulting improved plan.
@@ -407,3 +413,12 @@ newQuery = db.optimizer.pushdownOperators(query5)
 # if __name__ == "__main__":
 #   import doctest
 #   doctest.testmod()
+db = Database.Database()
+# testQuery1 = experiments.query1(db)
+# testQuery2 = experiments.query2(db)
+# testQuery3 = experiments.query3(db)
+testQuery4 = experiments.query4(db)
+# testQuery5 = experiments.query5(db)
+#
+opt = Optimizer(db)
+newQuery4 = opt.optimizeQuery(testQuery4)

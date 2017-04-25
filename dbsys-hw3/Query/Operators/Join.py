@@ -313,8 +313,10 @@ class Join(Operator):
     # Create a partition file as needed.
     if not self.storage.hasRelation(partRelId):
       self.storage.createRelation(partRelId, partSchema)
-      self.partitionFiles[int(left)][partitionId] = partRelId
-      # self.partitionFiles[1-int(left)][partitionId] = partRelId
+      # self.partitionFiles[int(left)][partitionId] = partRelId
+      self.partitionFiles[1 - int(left)][partitionId] = partRelId
+      # self.partitionFiles[int(left)][partitionId] = partRelId
+      # # self.partitionFiles[1-int(left)][partitionId] = partRelId
 
     partFile = self.storage.fileMgr.relationFile(partRelId)[1]
     if partFile:
